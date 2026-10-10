@@ -4,7 +4,8 @@ import { estimateHeightFromShadow } from "../solar/shadowHeight";
 import { sunAt } from "../solar/sun";
 import type { Obstruction } from "../store";
 import { captureRoof } from "./capture";
-import { Detection, type DetectRequest } from "./schema";
+import { requestDetection } from "../api";
+import { Detection } from "./schema";
 
 /** Imaging satellites pass over at about this local solar time. */
 const TYPICAL_PASS_SOLAR_HOUR = 10.5;
@@ -27,22 +28,12 @@ export async function detectObstructions(roof: LngLat[]): Promise<Obstruction[]>
     shadowBearing = (sunAt(new Date(passUtc), centre).azimuth + 180) % 360;
   }
 
-  const payload: DetectRequest = {
+  const body = await requestDetection({
     image: capture.image,
     size: capture.size,
-    metresPerPixel: capture.metresPerPixel,
-    shadowBearing,
-  };
-  const res = await fetch("/api/detect", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    metres_per_pixel: capture.metresPerPixel,
+    shadow_bearing: shadowBearing,
   });
-  const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = (body as { error?: string } | null)?.error;
-    throw new Error(message ?? "Detection failed.");
-  }
 
   return Detection.parse(body).obstructions.flatMap((found): Obstruction[] => {
     if (found.outline.length < 3) return [];

@@ -44,7 +44,7 @@ export default function AdvisorChat({ analysis }: { analysis: ShadingResult }) {
       recommended_system: sizing && {
         system_kw: sizing.systemKw,
         panels: sizing.panels,
-        monthly_generation_units: sizing.monthlyKwh.map(Math.round),
+        monthly_generation_units: sizing.monthlyKwh,
         share_of_usage_covered: Number(sizing.coverage.toFixed(2)),
         limited_by: sizing.limitedBy,
       },

@@ -79,6 +79,13 @@ export const fetchFinance = (input: FinanceInput, signal?: AbortSignal) => post<
 export const askAdvisor = (question: string, survey: unknown, history: ChatTurn[]) =>
   post<{ answer: string }>("/advise", { question, survey, history });
 
+export const requestDetection = (payload: {
+  image: string;
+  size: number;
+  metres_per_pixel: number;
+  shadow_bearing: number | null;
+}) => post<unknown>("/detect", payload);
+
 /** The Indian state a point falls in, by reverse geocoding. */
 export async function stateAt([lng, lat]: LngLat): Promise<string | null> {
   try {

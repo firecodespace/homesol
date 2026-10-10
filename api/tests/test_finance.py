@@ -66,3 +66,20 @@ def test_own_bill_and_quote_override_the_defaults():
 def test_needs_a_bill_or_a_discom():
     with pytest.raises(ValueError):
         finance.estimate(system_kw=2, monthly_generation=[200] * 12, monthly_usage=200)
+
+
+def test_advisor_finances_come_from_the_survey_and_scale_with_size():
+    from homesol.agents import baseline_finances
+
+    survey = {
+        "household": {"monthly_units": 300, "discom_id": "msedcl", "monthly_bill_rupees": None, "vendor_quote_rupees": None},
+        "recommended_system": {"system_kw": 2.75, "monthly_generation_units": [300] * 12},
+    }
+    base = baseline_finances(survey)
+    assert base["system_kw"] == 2.75 and base["subsidy"] == 73500 and base["net_cost"] == 91500
+
+    smaller = baseline_finances(survey, system_kw=1.1)
+    assert smaller["subsidy"] == 33000
+    assert smaller["first_year_savings"] < base["first_year_savings"]
+
+    assert "error" in baseline_finances({"household": {}, "recommended_system": None})

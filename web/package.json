@@ -15,8 +15,6 @@
     "dev:https": "pnpm copy-worker && next dev --experimental-https"
   },
   "dependencies": {
-    "@anthropic-ai/bedrock-sdk": "^0.34.4",
-    "@anthropic-ai/sdk": "^0.133.0",
     "maplibre-gl": "^6.13.0",
     "next": "16.4.0",
     "react": "19.3.0",

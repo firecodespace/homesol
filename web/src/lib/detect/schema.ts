@@ -20,13 +20,3 @@ export const DetectedObstruction = z.object({
 
 export const Detection = z.object({ obstructions: z.array(DetectedObstruction) });
 export type Detection = z.infer<typeof Detection>;
-
-export const DetectRequest = z.object({
-  /** Base64 JPEG, square, with the roof outlined in yellow. */
-  image: z.string().min(100),
-  size: z.number().int().positive(),
-  metresPerPixel: z.number().positive(),
-  /** Compass bearing shadows point in at the likely capture time, if the image date is known. */
-  shadowBearing: z.number().nullable(),
-});
-export type DetectRequest = z.infer<typeof DetectRequest>;
