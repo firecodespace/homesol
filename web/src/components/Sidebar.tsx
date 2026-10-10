@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centroid, localFrame, polygonArea } from "@/lib/geo/local";
+import { detectObstructions } from "@/lib/detect/detect";
 import { fetchMonthlyIrradiance } from "@/lib/irradiance";
 import { fetchImageryInfo, searchPlaces, type ImageryInfo, type Place } from "@/lib/imagery";
 import { horizonCoverage } from "@/lib/solar/horizon";
@@ -220,6 +221,18 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
         </button>
       </div>
 
+      {o.suggested && (
+        <div className="mt-2 flex items-start justify-between gap-2 rounded-md bg-violet-500/10 px-2 py-1.5 text-xs text-violet-200">
+          <span>
+            Found automatically{o.label ? `: ${o.label}` : ""}. Check the outline on the map and the height
+            {o.measurement ? " (measured from its shadow)" : " (a typical-size guess)"}.
+          </span>
+          <button className="shrink-0 font-medium hover:text-white" onClick={() => updateObstruction(o.id, { suggested: false })}>
+            Looks right
+          </button>
+        </div>
+      )}
+
       <div className="mt-3 flex items-center gap-2 text-sm text-slate-300">
         <span>Height</span>
         <input
@@ -327,12 +340,39 @@ function SkylineScan() {
 }
 
 function ObstructionsStep() {
-  const { mode, obstructions, startDrawing } = useStore();
+  const { mode, roof, obstructions, startDrawing, addObstructions } = useStore();
+  const [detecting, setDetecting] = useState(false);
+  const [detectNote, setDetectNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const detect = async () => {
+    if (!roof) return;
+    setDetecting(true);
+    setDetectNote(null);
+    try {
+      const found = await detectObstructions(roof);
+      addObstructions(found);
+      setDetectNote({
+        ok: true,
+        text: found.length
+          ? `Found ${found.length} possible obstruction${found.length > 1 ? "s" : ""}. Check each one below.`
+          : "Nothing that would shade this roof was found. Add anything it missed by hand.",
+      });
+    } catch (err) {
+      setDetectNote({ ok: false, text: err instanceof Error ? err.message : "Detection failed." });
+    } finally {
+      setDetecting(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-400">
         Outline anything that could shade the roof: taller neighbours, trees, water tanks, stair rooms.
       </p>
+      <button className={primary} disabled={detecting || mode !== "idle"} onClick={detect}>
+        {detecting ? "Looking at the satellite image…" : "Find obstructions for me"}
+      </button>
+      {detectNote && <p className={`text-xs ${detectNote.ok ? "text-slate-400" : "text-rose-300"}`}>{detectNote.text}</p>}
       {obstructions.length > 0 && (
         <ul className="space-y-2">
           {obstructions.map((o, i) => (
@@ -344,7 +384,7 @@ function ObstructionsStep() {
         <DrawingControls canFinish hint="Click around the outline of the object, then close the shape." />
       ) : (
         <button className={secondary} disabled={mode !== "idle"} onClick={() => startDrawing("obstruction")}>
-          + Add an obstruction
+          + Add one by hand
         </button>
       )}
       <SkylineScan />

@@ -27,6 +27,10 @@ export interface Obstruction {
   heightM: number | null;
   reference: "ground" | "roof";
   measurement?: ShadowMeasurement;
+  /** Short description from automatic detection. */
+  label?: string;
+  /** Proposed by automatic detection and not yet checked by the user. */
+  suggested?: boolean;
 }
 
 interface State {
@@ -61,6 +65,7 @@ interface State {
   setFloors(floors: number): void;
   updateObstruction(id: string, patch: Partial<Omit<Obstruction, "id">>): void;
   removeObstruction(id: string): void;
+  addObstructions(found: Obstruction[]): void;
   setPreview(patch: Partial<State["preview"]>): void;
   requestFlyTo(p: LngLat | null): void;
   setHorizon(horizon: HorizonProfile | null): void;
@@ -137,6 +142,8 @@ export const useStore = create<State>()(
         set((s) => ({
           obstructions: s.obstructions.filter((o) => o.id !== id),
         })),
+      addObstructions: (found) =>
+        set((s) => ({ obstructions: [...s.obstructions, ...found] })),
       setPreview: (patch) =>
         set((s) => ({ preview: { ...s.preview, ...patch } })),
       requestFlyTo: (flyTo) => set({ flyTo }),
