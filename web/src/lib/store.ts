@@ -47,6 +47,12 @@ interface State {
   scanOpen: boolean;
   /** Units (kWh) on a typical monthly electricity bill. */
   monthlyUnits: number | null;
+  /** Typical monthly bill in rupees, if the user gave it. */
+  monthlyBill: number | null;
+  /** A vendor's quote in rupees before subsidy, if the user has one. */
+  quotedCost: number | null;
+  /** Chosen electricity distributor; null until matched from the roof's location. */
+  discomId: string | null;
   showSunMap: boolean;
   /** Date and time shown in the live shadow preview (IST). */
   preview: { month: number; minutes: number };
@@ -72,6 +78,7 @@ interface State {
   setScanOpen(open: boolean): void;
   setShowSunMap(show: boolean): void;
   setMonthlyUnits(units: number | null): void;
+  setMoney(patch: Partial<Pick<State, "monthlyBill" | "quotedCost" | "discomId">>): void;
 }
 
 export const useStore = create<State>()(
@@ -86,6 +93,9 @@ export const useStore = create<State>()(
       horizon: null,
       scanOpen: false,
       monthlyUnits: null,
+      monthlyBill: null,
+      quotedCost: null,
+      discomId: null,
       showSunMap: true,
       preview: { month: 12, minutes: 11 * 60 },
       flyTo: null,
@@ -127,6 +137,7 @@ export const useStore = create<State>()(
           roof: null,
           obstructions: [],
           horizon: null,
+          discomId: null,
           mode: "idle",
           draft: [],
           measureTarget: null,
@@ -151,17 +162,21 @@ export const useStore = create<State>()(
       setScanOpen: (scanOpen) => set({ scanOpen }),
       setShowSunMap: (showSunMap) => set({ showSunMap }),
       setMonthlyUnits: (monthlyUnits) => set({ monthlyUnits }),
+      setMoney: (patch) => set(patch),
     }),
     {
       name: "homesol-survey",
       // Rehydrated from Planner after mount so server and first client render match.
       skipHydration: true,
-      partialize: ({ roof, floors, obstructions, horizon, monthlyUnits }) => ({
+      partialize: ({ roof, floors, obstructions, horizon, monthlyUnits, monthlyBill, quotedCost, discomId }) => ({
         roof,
         floors,
         obstructions,
         horizon,
         monthlyUnits,
+        monthlyBill,
+        quotedCost,
+        discomId,
       }),
     },
   ),

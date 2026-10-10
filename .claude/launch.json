@@ -4,8 +4,25 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "web", "dev"],
+      "runtimeArgs": [
+        "--dir",
+        "web",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "api/.venv/bin/uvicorn",
+      "runtimeArgs": [
+        "homesol.main:app",
+        "--app-dir",
+        "api",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "port": 8000
     }
   ]
 }

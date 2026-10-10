@@ -1,0 +1,90 @@
+{
+  "as_of": "2026-10-10",
+  "central_subsidy": {
+    "scheme": "PM Surya Ghar: Muft Bijli Yojana",
+    "per_kw_first_2kw": 30000,
+    "per_kw_third_kw": 18000,
+    "max_total": 78000,
+    "applies_to": "Residential rooftop systems installed through a registered vendor with net metering.",
+    "apply_at": "https://pmsuryaghar.gov.in",
+    "source": "https://solar.delhi.gov.in/page/central-subsidy",
+    "verified": true
+  },
+  "system_cost_per_kw": {
+    "low": 47000,
+    "typical": 60000,
+    "high": 73000,
+    "note": "Market range for a grid-connected home system before subsidy, from 2026 installer price guides. Not an official benchmark.",
+    "source": "https://www.voltflow.net/blog/solar-panel-cost-india-2026",
+    "verified": false
+  },
+  "discoms": {
+    "msedcl": {
+      "name": "MSEDCL (Mahavitaran)",
+      "state": "Maharashtra",
+      "tariff": {
+        "slabs": [
+          { "up_to": 100, "rate": 3.25 },
+          { "up_to": 300, "rate": 6.14 },
+          { "up_to": 500, "rate": 8.45 },
+          { "up_to": null, "rate": 9.56 }
+        ],
+        "fixed_charge": 150,
+        "excludes": "Wheeling charge, fuel adjustment charge and electricity duty, which add to every unit.",
+        "source": "https://desiutility.com/electricity/tariffs/msedcl",
+        "verified": false
+      },
+      "net_metering": {
+        "surplus_rate": 2.82,
+        "summary": "Units you export offset units you import. Surplus left at the end of the year is paid at Rs 2.82 per unit, fixed by MERC for five years from April 2026.",
+        "source": "https://mercomindia.com/maharashtra-tariff-for-surplus-rooftop-solar-power-in-fy-2027",
+        "verified": true
+      }
+    },
+    "delhi": {
+      "name": "Delhi (BSES Rajdhani, BSES Yamuna, Tata Power-DDL)",
+      "state": "Delhi",
+      "tariff": {
+        "slabs": [
+          { "up_to": 200, "rate": 3.0 },
+          { "up_to": 400, "rate": 6.25 },
+          { "up_to": 800, "rate": 6.75 },
+          { "up_to": null, "rate": 8.0 }
+        ],
+        "fixed_charge": 125,
+        "excludes": "PPAC surcharge, electricity duty and the Delhi government's subsidy on the first 200 units.",
+        "source": "https://desiutility.com/electricity/tariffs/delhi",
+        "verified": false
+      },
+      "net_metering": {
+        "surplus_rate": null,
+        "summary": "Net metering is available and DERC shortened the application to two stages in July 2026. The rate paid for year-end surplus could not be confirmed from a DERC order.",
+        "source": "https://solarquarter.com/2026/07/20/delhi-unveils-derc-net-metering-guidelines-2026-to-fast-track-rooftop-solar-connections-in-delhi/",
+        "verified": false
+      }
+    },
+    "bescom": {
+      "name": "BESCOM",
+      "state": "Karnataka",
+      "tariff": {
+        "slabs": [
+          { "up_to": 30, "rate": 2.85 },
+          { "up_to": 100, "rate": 4.15 },
+          { "up_to": 200, "rate": 5.69 },
+          { "up_to": 400, "rate": 7.01 },
+          { "up_to": null, "rate": 8.16 }
+        ],
+        "fixed_charge": 135,
+        "excludes": "Fuel surcharge, the pension surcharge and electricity duty. Other reports put KERC's 2026-27 energy charge at about Rs 5.80 a unit, so treat these slabs with caution.",
+        "source": "https://desiutility.com/electricity/tariffs/bescom",
+        "verified": false
+      },
+      "net_metering": {
+        "surplus_rate": null,
+        "summary": "Net metering is available. KERC revised rooftop tariffs in August 2026, and the rate for household surplus under PM Surya Ghar could not be confirmed.",
+        "source": "https://www.reslink.org/blogs/karnataka-solar-tariffs-2026-29-net-metering-bess-rules/",
+        "verified": false
+      }
+    }
+  }
+}

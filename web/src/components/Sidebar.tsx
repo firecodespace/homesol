@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centroid, localFrame, polygonArea } from "@/lib/geo/local";
 import { detectObstructions } from "@/lib/detect/detect";
-import { fetchMonthlyIrradiance } from "@/lib/irradiance";
 import { fetchImageryInfo, searchPlaces, type ImageryInfo, type Place } from "@/lib/imagery";
 import { horizonCoverage } from "@/lib/solar/horizon";
 import { USABLE_ACCESS, type ShadingResult } from "@/lib/solar/shading";
 import { AREA_PER_KW_M2 } from "@/lib/solar/shading";
-import { PANEL_KW, PERFORMANCE_RATIO, sizeSystem } from "@/lib/solar/sizing";
+import { PANEL_KW, PERFORMANCE_RATIO } from "@/lib/solar/sizing";
+import { useSizing } from "@/lib/useSizing";
 import type { SunPosition } from "@/lib/solar/sun";
+import AdvisorChat from "./AdvisorChat";
 import HorizonChart from "./HorizonChart";
+import MoneyStep from "./MoneyStep";
+import { fmt, primary, secondary, Stat } from "./ui";
 import { FLOOR_HEIGHT_M, useStore, type Obstruction, type ObstructionKind } from "@/lib/store";
 
 const SQFT_PER_M2 = 10.7639;
@@ -23,15 +26,10 @@ const KINDS: Record<ObstructionKind, string> = {
   other: "Other",
 };
 
-const fmt = (n: number, digits = 0) => n.toLocaleString("en-IN", { maximumFractionDigits: digits });
 const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const imageryDate = (i: ImageryInfo) => `${i.day} ${MONTHS[i.month - 1]} ${i.year}`;
 
-const button =
-  "rounded-lg px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40";
-const primary = `${button} bg-amber-400 text-slate-950 hover:bg-amber-300`;
-const secondary = `${button} border border-slate-700 text-slate-200 hover:bg-slate-800`;
 
 function Section({ step, title, children }: { step: number; title: string; children: ReactNode }) {
   return (
@@ -392,16 +390,6 @@ function ObstructionsStep() {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-lg bg-slate-900 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-50">{value}</p>
-      {sub && <p className="text-xs text-slate-500">{sub}</p>}
-    </div>
-  );
-}
-
 function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosition | null }) {
   const { preview, setPreview, obstructions, showSunMap, setShowSunMap } = useStore();
   const [playing, setPlaying] = useState(false);
@@ -498,29 +486,8 @@ function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosit
 }
 
 function SizingStep({ analysis }: { analysis: ShadingResult }) {
-  const { roof, monthlyUnits, setMonthlyUnits } = useStore();
-  const [sunlight, setSunlight] = useState<{ values: number[] } | { error: string } | null>(null);
-
-  useEffect(() => {
-    if (!roof) return;
-    const controller = new AbortController();
-    fetchMonthlyIrradiance(centroid(roof), controller.signal)
-      .then((values) => setSunlight({ values }))
-      .catch((err: Error) => {
-        if (err.name !== "AbortError") setSunlight({ error: err.message });
-      });
-    return () => controller.abort();
-  }, [roof]);
-
-  const sizing =
-    monthlyUnits && sunlight && "values" in sunlight
-      ? sizeSystem({
-          monthlyIrradiance: sunlight.values,
-          monthlyUsageKwh: monthlyUnits,
-          roofCapacityKw: analysis.capacityKw,
-          solarAccess: analysis.usableAccess,
-        })
-      : null;
+  const { monthlyUnits, setMonthlyUnits } = useStore();
+  const { sizing, sunlight } = useSizing(analysis);
   const lowest = sizing ? sizing.monthlyKwh.indexOf(Math.min(...sizing.monthlyKwh)) : 0;
   const highest = sizing ? sizing.monthlyKwh.indexOf(Math.max(...sizing.monthlyKwh)) : 0;
 
@@ -604,6 +571,16 @@ export default function Sidebar({ analysis, sun }: { analysis: ShadingResult | n
       {analysis && (
         <Section step={4} title="Size it to your electricity bill">
           <SizingStep analysis={analysis} />
+        </Section>
+      )}
+      {analysis && (
+        <Section step={5} title="Cost, subsidy and savings">
+          <MoneyStep analysis={analysis} />
+        </Section>
+      )}
+      {analysis && (
+        <Section step={6} title="Ask the advisor">
+          <AdvisorChat analysis={analysis} />
         </Section>
       )}
     </aside>
