@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "copy-worker": "cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs public/maplibre-gl-worker.mjs",
     "predev": "pnpm copy-worker",
-    "prebuild": "pnpm copy-worker"
+    "prebuild": "pnpm copy-worker",
+    "dev:https": "pnpm copy-worker && next dev --experimental-https"
   },
   "dependencies": {
     "maplibre-gl": "^6.13.0",

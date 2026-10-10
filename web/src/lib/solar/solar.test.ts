@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { localFrame, type LngLat } from "../geo/local";
+import { cameraDirection, emptyHorizon, horizonElevation, withSample } from "./horizon";
 import { analyseShading, shadowOutlines } from "./shading";
 import { estimateHeightFromShadow } from "./shadowHeight";
+import { PANEL_KW, sizeSystem } from "./sizing";
 import { istDate, sunAt } from "./sun";
 
 const DELHI: LngLat = [77.209, 28.6139];
@@ -124,5 +126,81 @@ describe("shadowOutlines", () => {
   it("casts nothing at night", () => {
     const sun = sunAt(istDate(2025, 12, 21, 23, 0), DELHI);
     expect(shadowOutlines([{ footprint: square(DELHI, 0, 0, 4), heightM: 10, reference: "roof" }], 0, sun)).toEqual([]);
+  });
+});
+
+describe("cameraDirection", () => {
+  it.each([
+    { name: "upright facing north", angles: [0, 90, 0], azimuth: 0, elevation: 0 },
+    { name: "upright facing west", angles: [90, 90, 0], azimuth: 270, elevation: 0 },
+    { name: "upright facing east", angles: [270, 90, 0], azimuth: 90, elevation: 0 },
+    { name: "facing south, tilted back 30°", angles: [180, 120, 0], azimuth: 180, elevation: 30 },
+    { name: "lying flat, camera down", angles: [0, 0, 0], azimuth: null, elevation: -90 },
+  ])("reads a phone held $name", ({ angles, azimuth, elevation }) => {
+    const dir = cameraDirection(angles[0], angles[1], angles[2]);
+    expect(dir.elevation).toBeCloseTo(elevation, 5);
+    if (azimuth !== null) expect(Math.abs(dir.azimuth - azimuth) % 360).toBeCloseTo(0, 5);
+  });
+});
+
+describe("horizon profile", () => {
+  it("interpolates between scanned bearings and treats unscanned sky as open", () => {
+    let profile = emptyHorizon();
+    profile = withSample(profile, { azimuth: 180, elevation: 40 });
+    profile = withSample(profile, { azimuth: 185, elevation: 20 });
+    expect(horizonElevation(profile, 180)).toBe(40);
+    expect(horizonElevation(profile, 182.5)).toBeCloseTo(30, 5);
+    expect(horizonElevation(profile, 90)).toBe(0);
+  });
+
+  it("lets a re-trace replace an earlier sample and never goes below the horizon", () => {
+    let profile = withSample(emptyHorizon(), { azimuth: 358, elevation: 50 });
+    profile = withSample(profile, { azimuth: 1, elevation: -10 });
+    expect(horizonElevation(profile, 0)).toBe(0);
+  });
+
+  it("cuts yearly sun when a southern skyline hides the winter sun", () => {
+    const roof = square(DELHI, 0, 0, 10);
+    let wall = emptyHorizon();
+    for (let az = 120; az <= 240; az += 5) wall = withSample(wall, { azimuth: az, elevation: 45 });
+    let northWall = emptyHorizon();
+    for (let az = 300; az <= 420; az += 5) northWall = withSample(northWall, { azimuth: az, elevation: 45 });
+
+    const south = analyseShading(roof, 6, [], wall);
+    const north = analyseShading(roof, 6, [], northWall);
+    expect(south.meanAccess).toBeLessThan(0.85);
+    expect(south.meanAccess).toBeGreaterThan(0.2);
+    expect(north.meanAccess).toBeGreaterThan(0.9);
+  });
+});
+
+describe("sizeSystem", () => {
+  // NASA POWER climatology for Mumbai, kWh/m²/day.
+  const mumbai = [4.88, 5.74, 6.59, 7.08, 7.09, 5.0, 3.79, 4.04, 4.78, 5.21, 4.84, 4.53];
+
+  it("sizes a 300-unit home at about 2.5 kW, generating roughly 4 units per kW per day", () => {
+    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 40, solarAccess: 1 });
+    expect(s.systemKw).toBeGreaterThan(2);
+    expect(s.systemKw).toBeLessThan(3);
+    expect(s.limitedBy).toBe("usage");
+    expect(s.coverage).toBe(1);
+    expect(s.annualKwh / s.systemKw / 365).toBeCloseTo(4, 0);
+    // The monsoon months generate least.
+    expect(Math.min(...s.monthlyKwh)).toBe(s.monthlyKwh[6]);
+  });
+
+  it("stops at what the roof holds and reports partial coverage", () => {
+    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 1.2, solarAccess: 1 });
+    expect(s.panels).toBe(2);
+    expect(s.systemKw).toBeCloseTo(2 * PANEL_KW, 5);
+    expect(s.limitedBy).toBe("roof");
+    expect(s.coverage).toBeLessThan(0.6);
+  });
+
+  it("needs more panels on a partly shaded roof", () => {
+    const base = { monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 40 };
+    expect(sizeSystem({ ...base, solarAccess: 0.85 }).panels).toBeGreaterThan(
+      sizeSystem({ ...base, solarAccess: 1 }).panels,
+    );
   });
 });

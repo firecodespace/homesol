@@ -2,9 +2,14 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centroid, localFrame, polygonArea } from "@/lib/geo/local";
+import { fetchMonthlyIrradiance } from "@/lib/irradiance";
 import { fetchImageryInfo, searchPlaces, type ImageryInfo, type Place } from "@/lib/imagery";
+import { horizonCoverage } from "@/lib/solar/horizon";
 import { USABLE_ACCESS, type ShadingResult } from "@/lib/solar/shading";
+import { AREA_PER_KW_M2 } from "@/lib/solar/shading";
+import { PANEL_KW, PERFORMANCE_RATIO, sizeSystem } from "@/lib/solar/sizing";
 import type { SunPosition } from "@/lib/solar/sun";
+import HorizonChart from "./HorizonChart";
 import { FLOOR_HEIGHT_M, useStore, type Obstruction, type ObstructionKind } from "@/lib/store";
 
 const SQFT_PER_M2 = 10.7639;
@@ -268,7 +273,7 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
           </p>
           <p>
             Image dated {imageryDate(m.imagery)}; capture time solved from the shadow direction as{" "}
-            {m.estimate.capturedAt.toLocaleTimeString("en-IN", {
+            {new Date(m.estimate.capturedAt).toLocaleTimeString("en-IN", {
               timeZone: "Asia/Kolkata",
               hour: "2-digit",
               minute: "2-digit",
@@ -283,6 +288,41 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
         </div>
       )}
     </li>
+  );
+}
+
+function SkylineScan() {
+  const { roof, horizon, setHorizon, setScanOpen } = useStore();
+  if (!roof) return null;
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+      <p className="text-sm font-medium text-slate-200">Scan the skyline from the roof</p>
+      {horizon ? (
+        <div className="mt-3 space-y-3">
+          <HorizonChart profile={horizon} at={centroid(roof)} />
+          <p className="text-xs text-slate-400">
+            {fmt(horizonCoverage(horizon) * 100)}% of the compass traced. Untraced directions count as open sky.
+          </p>
+          <div className="flex gap-2">
+            <button className={secondary} onClick={() => setScanOpen(true)}>
+              Scan again
+            </button>
+            <button className={secondary} onClick={() => setHorizon(null)}>
+              Remove scan
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-slate-400">
+            The most accurate option. Stand on the roof with your phone and trace the tops of everything around you.
+          </p>
+          <button className={`${secondary} mt-3`} onClick={() => setScanOpen(true)}>
+            Scan with my phone
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -307,6 +347,7 @@ function ObstructionsStep() {
           + Add an obstruction
         </button>
       )}
+      <SkylineScan />
     </div>
   );
 }
@@ -322,7 +363,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosition | null }) {
-  const { preview, setPreview, obstructions } = useStore();
+  const { preview, setPreview, obstructions, showSunMap, setShowSunMap } = useStore();
   const [playing, setPlaying] = useState(false);
   const minutesRef = useRef(preview.minutes);
   useEffect(() => {
@@ -343,7 +384,7 @@ function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosit
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Yearly sun reaching roof" value={`${fmt(analysis.meanAccess * 100)}%`} />
-        <Stat label="Fits about" value={`${fmt(analysis.capacityKw, 1)} kW`} sub="of panels" />
+        <Stat label="Roof could hold up to" value={`${fmt(analysis.capacityKw, 1)} kW`} sub="see step 4 for what you need" />
         <Stat
           label="Good area for panels"
           value={`${fmt(analysis.usableAreaM2)} m²`}
@@ -358,6 +399,15 @@ function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosit
           <span>Mostly shaded</span>
           <span>Full sun all year</span>
         </div>
+        <label className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+          <input
+            type="checkbox"
+            checked={showSunMap}
+            onChange={(e) => setShowSunMap(e.target.checked)}
+            className="accent-amber-400"
+          />
+          Show the sun map on the roof
+        </label>
       </div>
 
       <div className="rounded-lg border border-slate-800 p-3">
@@ -407,6 +457,87 @@ function ResultsStep({ analysis, sun }: { analysis: ShadingResult; sun: SunPosit
   );
 }
 
+function SizingStep({ analysis }: { analysis: ShadingResult }) {
+  const { roof, monthlyUnits, setMonthlyUnits } = useStore();
+  const [sunlight, setSunlight] = useState<{ values: number[] } | { error: string } | null>(null);
+
+  useEffect(() => {
+    if (!roof) return;
+    const controller = new AbortController();
+    fetchMonthlyIrradiance(centroid(roof), controller.signal)
+      .then((values) => setSunlight({ values }))
+      .catch((err: Error) => {
+        if (err.name !== "AbortError") setSunlight({ error: err.message });
+      });
+    return () => controller.abort();
+  }, [roof]);
+
+  const sizing =
+    monthlyUnits && sunlight && "values" in sunlight
+      ? sizeSystem({
+          monthlyIrradiance: sunlight.values,
+          monthlyUsageKwh: monthlyUnits,
+          roofCapacityKw: analysis.capacityKw,
+          solarAccess: analysis.usableAccess,
+        })
+      : null;
+  const lowest = sizing ? sizing.monthlyKwh.indexOf(Math.min(...sizing.monthlyKwh)) : 0;
+  const highest = sizing ? sizing.monthlyKwh.indexOf(Math.max(...sizing.monthlyKwh)) : 0;
+
+  return (
+    <div className="space-y-4">
+      <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+        Units on a typical monthly bill
+        <span className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            step={10}
+            placeholder="e.g. 300"
+            value={monthlyUnits ?? ""}
+            onChange={(e) => setMonthlyUnits(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))}
+            className="w-24 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-right text-slate-100"
+          />
+          <span className="text-slate-500">kWh</span>
+        </span>
+      </label>
+      <p className="text-xs text-slate-500">
+        Your bill lists this as &quot;units consumed&quot;. Use an average month, not your highest.
+      </p>
+
+      {sunlight && "error" in sunlight && <p className="text-xs text-rose-300">{sunlight.error}</p>}
+      {monthlyUnits && !sunlight && <p className="text-xs text-slate-400">Loading sunlight data for your location…</p>}
+
+      {sizing && sizing.panels === 0 && (
+        <p className="text-sm text-amber-300">The unshaded part of this roof is too small for even one panel.</p>
+      )}
+      {sizing && sizing.panels > 0 && (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Recommended system" value={`${fmt(sizing.systemKw, 1)} kW`} sub={`${sizing.panels} panels`} />
+            <Stat label="Covers" value={`${fmt(sizing.coverage * 100)}%`} sub="of your yearly usage" />
+            <Stat label="Generates about" value={`${fmt(sizing.annualKwh / 12)} units`} sub="per month on average" />
+            <Stat
+              label="Roof space needed"
+              value={`${fmt(sizing.systemKw * AREA_PER_KW_M2)} m²`}
+              sub={`of ${fmt(analysis.usableAreaM2)} m² available`}
+            />
+          </div>
+          <p className="text-xs text-slate-400">
+            Expect about {fmt(sizing.monthlyKwh[highest])} units in {MONTHS[highest]} and{" "}
+            {fmt(sizing.monthlyKwh[lowest])} in {MONTHS[lowest]}.
+            {sizing.limitedBy === "roof" && " The roof is the limit here: a bigger system would not fit in the sunny area."}
+          </p>
+          <p className="text-xs text-slate-500">
+            Based on 25 years of NASA satellite sunlight records for this spot, {PANEL_KW * 1000} W
+            panels, and {PERFORMANCE_RATIO * 100}% of that sunlight reaching your meter after real-world losses.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar({ analysis, sun }: { analysis: ShadingResult | null; sun: SunPosition | null }) {
   const roof = useStore((s) => s.roof);
   return (
@@ -428,6 +559,11 @@ export default function Sidebar({ analysis, sun }: { analysis: ShadingResult | n
       {analysis && (
         <Section step={3} title="Your roof's sun map">
           <ResultsStep analysis={analysis} sun={sun} />
+        </Section>
+      )}
+      {analysis && (
+        <Section step={4} title="Size it to your electricity bill">
+          <SizingStep analysis={analysis} />
         </Section>
       )}
     </aside>

@@ -41,7 +41,7 @@ export default function MapView({ analysis, shadows }: Props) {
   const pending = useRef<Partial<Record<SourceId, FeatureCollection>>>({});
   const markers = useRef<Marker[]>([]);
 
-  const { mode, draft, roof, obstructions, flyTo } = useStore();
+  const { mode, draft, roof, obstructions, flyTo, showSunMap } = useStore();
 
   const setData = (id: SourceId, data: FeatureCollection) => {
     const map = mapRef.current;
@@ -91,7 +91,7 @@ export default function MapView({ analysis, shadows }: Props) {
             0.85, "#facc15",
             1, "#fef9c3",
           ],
-          "fill-opacity": 0.78,
+          "fill-opacity": 0.6,
         },
       });
       map.addLayer({
@@ -227,8 +227,11 @@ export default function MapView({ analysis, shadows }: Props) {
   }, [obstructions]);
 
   useEffect(() => {
-    setData("cells", collection(analysis?.cells.map((c) => polygon(c.polygon, { access: c.access })) ?? []));
-  }, [analysis]);
+    // Keep the imagery clear while the user is tracing shapes on it.
+    const visible = showSunMap && mode === "idle";
+    const cells = visible ? (analysis?.cells ?? []) : [];
+    setData("cells", collection(cells.map((c) => polygon(c.polygon, { access: c.access }))));
+  }, [analysis, showSunMap, mode]);
 
   useEffect(() => {
     setData("shadows", collection(shadows.map((s) => polygon(s))));

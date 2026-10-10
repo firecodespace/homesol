@@ -7,6 +7,7 @@ import {
   type LngLat,
   type XY,
 } from "../geo/local";
+import { sunBlockedByHorizon, type HorizonProfile } from "./horizon";
 import { istDate, sunAt, type SunPosition } from "./sun";
 
 const DEG = Math.PI / 180;
@@ -37,6 +38,8 @@ export interface ShadingResult {
   roofAreaM2: number;
   usableAreaM2: number;
   meanAccess: number;
+  /** Mean access over just the cells good enough for panels. */
+  usableAccess: number;
   capacityKw: number;
 }
 
@@ -68,11 +71,15 @@ function yearlySunSamples(at: LngLat): SunPosition[] {
  * towards the sun passes over the prism's footprint while still below its top,
  * i.e. within a horizontal reach of height / tan(elevation). Samples are
  * weighted by sin(elevation), which tracks direct irradiance on a flat surface.
+ *
+ * A scanned `horizon` shades the whole roof whenever the sun is below the
+ * skyline, on top of whatever the prisms block.
  */
 export function analyseShading(
   roof: LngLat[],
   roofHeightM: number,
   obstructions: ShadingObstruction[],
+  horizon: HorizonProfile | null = null,
 ): ShadingResult {
   const origin = centroid(roof);
   const frame = localFrame(origin);
@@ -85,6 +92,7 @@ export function analyseShading(
     .filter((p) => p.height > 0 && p.footprint.length >= 3);
 
   const samples = yearlySunSamples(origin).map((sun) => ({
+    belowSkyline: sunBlockedByHorizon(horizon, sun),
     dir: sunDirection(sun),
     reachPerMetre: 1 / Math.tan(sun.elevation * DEG),
     weight: Math.sin(sun.elevation * DEG),
@@ -104,6 +112,7 @@ export function analyseShading(
 
       let lit = 0;
       for (const s of samples) {
+        if (s.belowSkyline) continue;
         const shaded = prisms.some((prism) => {
           const reach = prism.height * s.reachPerMetre;
           return segmentHitsPolygon(p, [x + s.dir[0] * reach, y + s.dir[1] * reach], prism.footprint);
@@ -122,7 +131,8 @@ export function analyseShading(
   }
 
   const cellArea = cellSizeM * cellSizeM;
-  const usableAreaM2 = cells.filter((c) => c.access >= USABLE_ACCESS).length * cellArea;
+  const usable = cells.filter((c) => c.access >= USABLE_ACCESS);
+  const usableAreaM2 = usable.length * cellArea;
   const meanAccess = cells.length ? cells.reduce((s, c) => s + c.access, 0) / cells.length : 0;
   return {
     cells,
@@ -130,6 +140,7 @@ export function analyseShading(
     roofAreaM2,
     usableAreaM2,
     meanAccess,
+    usableAccess: usable.length ? usable.reduce((s, c) => s + c.access, 0) / usable.length : 0,
     capacityKw: usableAreaM2 / AREA_PER_KW_M2,
   };
 }
