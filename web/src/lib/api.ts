@@ -4,7 +4,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export interface PolicyEntry {
   summary: string;
-  surplus_rate: number | null;
+  /** One rate, or rates by system size where the regulator sets them that way. */
+  surplus_rate: number | { up_to_kw: number | null; rate: number }[] | null;
   source: string;
   verified: boolean;
 }
@@ -41,6 +42,7 @@ export interface FinanceInput {
   discom_id: string | null;
   monthly_bill: number | null;
   quoted_cost: number | null;
+  sanctioned_load_kw: number | null;
 }
 
 export interface ChatTurn {
@@ -85,6 +87,38 @@ export const requestDetection = (payload: {
   metres_per_pixel: number;
   shadow_bearing: number | null;
 }) => post<unknown>("/detect", payload);
+
+export const sendVerdict = (verdict: {
+  detection_id: string;
+  verdict: "confirmed" | "rejected" | "missed";
+  model_index: number | null;
+  kind: string;
+  footprint: LngLat[];
+  height_m: number | null;
+  height_from: "ground" | "roof";
+  roof: LngLat[];
+}) => post<{ ok: boolean }>("/feedback", verdict);
+
+export interface BillReading {
+  units_per_month: number | null;
+  bill_per_month: number | null;
+  discom_id: string | null;
+  distributor: string | null;
+  sanctioned_load_kw: number | null;
+  basis: string | null;
+}
+
+export const readBill = (image: string) => post<BillReading>("/bill", { image, format: "jpeg" });
+
+export type SpeechLanguage = "en-IN" | "hi-IN";
+
+export const transcribe = (audio: string, language: SpeechLanguage) =>
+  post<{ text: string; language: string | null }>("/transcribe", { audio, language });
+
+export const saveSurvey = (survey: unknown) => post<{ code: string }>("/surveys", { survey });
+
+export const loadSurvey = (code: string) =>
+  call<{ survey: Record<string, unknown> }>(`/surveys/${encodeURIComponent(code)}`);
 
 /** The Indian state a point falls in, by reverse geocoding. */
 export async function stateAt([lng, lat]: LngLat): Promise<string | null> {

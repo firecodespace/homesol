@@ -1,0 +1,853 @@
+{
+ "_about": "Eval cases for the homesol advisor. 'households' hold the survey exactly as web/src/components/AdvisorChat.tsx sends it. Each case names a household, the question, its language (en | hi | hinglish), and what a good answer must satisfy: must_include (figures are named by field of baseline_finances, or 'whatif.<field>' for the what_if recalculation, or given literally; a list means any one of them; 'text' is a substring, any of), what_if (the arguments estimate_finances must be called with), detail_requested (lifts the 150-word limit) and careful (the yes/no rubric handed to the grader for cases that need declining or redirecting). no_figures_about names an unknown (terms) on which the answer must not put a figure of the given kinds in the same sentence.",
+ "households": {
+  "mh_300": {
+   "description": "Pune, Maharashtra, MSEDCL. 300 units a month, no bill amount entered, so savings are priced from the unverified slab table. Roof has room to spare.",
+   "survey": {
+    "roof": {
+     "area_m2": 62,
+     "usable_area_m2": 38,
+     "yearly_sun_reaching_roof": 0.91,
+     "max_system_kw": 4.4,
+     "height_m": 6,
+     "skyline_scanned": true
+    },
+    "obstructions": [
+     {
+      "kind": "tank",
+      "height_m": 1.5,
+      "height_from": "roof",
+      "height_source": "entered by user"
+     }
+    ],
+    "household": {
+     "monthly_units": 300,
+     "monthly_bill_rupees": null,
+     "discom_id": "msedcl",
+     "vendor_quote_rupees": null
+    },
+    "recommended_system": {
+     "system_kw": 2.75,
+     "panels": 5,
+     "monthly_generation_units": [
+      335.5,
+      346.5,
+      407.0,
+      412.5,
+      418.0,
+      308.0,
+      253.0,
+      258.5,
+      291.5,
+      341.0,
+      324.5,
+      319.0
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "delhi_450": {
+   "description": "Delhi. 450 units a month, no bill amount, slab-priced. Year-end surplus rate is not confirmed for Delhi. Taller neighbour measured from its satellite shadow; no skyline scan.",
+   "survey": {
+    "roof": {
+     "area_m2": 85,
+     "usable_area_m2": 52,
+     "yearly_sun_reaching_roof": 0.88,
+     "max_system_kw": 5.5,
+     "height_m": 9,
+     "skyline_scanned": false
+    },
+    "obstructions": [
+     {
+      "kind": "building",
+      "height_m": 12,
+      "height_from": "ground",
+      "height_source": "satellite shadow"
+     }
+    ],
+    "household": {
+     "monthly_units": 450,
+     "monthly_bill_rupees": null,
+     "discom_id": "delhi",
+     "vendor_quote_rupees": null
+    },
+    "recommended_system": {
+     "system_kw": 3.85,
+     "panels": 7,
+     "monthly_generation_units": [
+      385.0,
+      438.9,
+      546.7,
+      577.5,
+      592.9,
+      492.8,
+      415.8,
+      408.1,
+      454.3,
+      485.1,
+      400.4,
+      369.6
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "ka_200": {
+   "description": "Bengaluru, Karnataka, BESCOM. 200 units a month and a bill of Rs 1,650, so savings are priced from the household's own bill. Clear roof.",
+   "survey": {
+    "roof": {
+     "area_m2": 48,
+     "usable_area_m2": 30,
+     "yearly_sun_reaching_roof": 0.93,
+     "max_system_kw": 3.3,
+     "height_m": 3,
+     "skyline_scanned": true
+    },
+    "obstructions": [],
+    "household": {
+     "monthly_units": 200,
+     "monthly_bill_rupees": 1650,
+     "discom_id": "bescom",
+     "vendor_quote_rupees": null
+    },
+    "recommended_system": {
+     "system_kw": 1.65,
+     "panels": 3,
+     "monthly_generation_units": [
+      224.4,
+      227.7,
+      250.8,
+      237.6,
+      227.7,
+      178.2,
+      165.0,
+      168.3,
+      178.2,
+      191.4,
+      188.1,
+      201.3
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "tn_250_unsupported": {
+   "description": "Chennai, Tamil Nadu. Distributor is not supported (discom_id null); the household gave a bill of Rs 1,900 for 250 units instead.",
+   "survey": {
+    "roof": {
+     "area_m2": 55,
+     "usable_area_m2": 34,
+     "yearly_sun_reaching_roof": 0.9,
+     "max_system_kw": 3.85,
+     "height_m": 6,
+     "skyline_scanned": true
+    },
+    "obstructions": [
+     {
+      "kind": "tree",
+      "height_m": 7,
+      "height_from": "ground",
+      "height_source": "entered by user"
+     }
+    ],
+    "household": {
+     "monthly_units": 250,
+     "monthly_bill_rupees": 1900,
+     "discom_id": null,
+     "vendor_quote_rupees": null
+    },
+    "recommended_system": {
+     "system_kw": 2.2,
+     "panels": 4,
+     "monthly_generation_units": [
+      272.8,
+      290.4,
+      330.0,
+      321.2,
+      312.4,
+      268.4,
+      246.4,
+      250.8,
+      255.2,
+      237.6,
+      220.0,
+      233.2
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "mh_600_small_roof": {
+   "description": "Mumbai suburb, Maharashtra, MSEDCL. 600 units a month but a small, partly shaded roof: the system is roof-limited at 2.2 kW and covers about 40% of usage. A tree with no height and a guessed building height; no skyline scan.",
+   "survey": {
+    "roof": {
+     "area_m2": 28,
+     "usable_area_m2": 13,
+     "yearly_sun_reaching_roof": 0.74,
+     "max_system_kw": 2.3,
+     "height_m": 3,
+     "skyline_scanned": false
+    },
+    "obstructions": [
+     {
+      "kind": "building",
+      "height_m": 14,
+      "height_from": "ground",
+      "height_source": "automatic guess"
+     },
+     {
+      "kind": "tree",
+      "height_m": null,
+      "height_from": "ground",
+      "height_source": "automatic guess"
+     },
+     {
+      "kind": "tank",
+      "height_m": 1.2,
+      "height_from": "roof",
+      "height_source": "entered by user"
+     }
+    ],
+    "household": {
+     "monthly_units": 600,
+     "monthly_bill_rupees": null,
+     "discom_id": "msedcl",
+     "vendor_quote_rupees": null
+    },
+    "recommended_system": {
+     "system_kw": 2.2,
+     "panels": 4,
+     "monthly_generation_units": [
+      237.6,
+      246.4,
+      290.4,
+      294.8,
+      297.0,
+      220.0,
+      180.4,
+      184.8,
+      206.8,
+      242.0,
+      231.0,
+      226.6
+     ],
+     "share_of_usage_covered": 0.4,
+     "limited_by": "roof"
+    }
+   }
+  },
+  "mh_350_high_quote": {
+   "description": "Nagpur, Maharashtra, MSEDCL. 350 units, bill Rs 3,200, and a vendor quote of Rs 3.4 lakh for 3.3 kW, about 41% above the top of the usual range (Rs 1.55-2.41 lakh).",
+   "survey": {
+    "roof": {
+     "area_m2": 70,
+     "usable_area_m2": 44,
+     "yearly_sun_reaching_roof": 0.92,
+     "max_system_kw": 4.95,
+     "height_m": 6,
+     "skyline_scanned": true
+    },
+    "obstructions": [
+     {
+      "kind": "tank",
+      "height_m": 1.8,
+      "height_from": "roof",
+      "height_source": "entered by user"
+     }
+    ],
+    "household": {
+     "monthly_units": 350,
+     "monthly_bill_rupees": 3200,
+     "discom_id": "msedcl",
+     "vendor_quote_rupees": 340000
+    },
+    "recommended_system": {
+     "system_kw": 3.3,
+     "panels": 6,
+     "monthly_generation_units": [
+      402.6,
+      415.8,
+      488.4,
+      495.0,
+      501.6,
+      369.6,
+      303.6,
+      310.2,
+      349.8,
+      409.2,
+      389.4,
+      382.8
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  }
+ },
+ "cases": [
+  {
+   "id": "mh-worth-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is solar worth it for my home?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "mh-worth-hi",
+   "household": "mh_300",
+   "lang": "hi",
+   "type": "worth_it",
+   "question": "क्या मेरे घर के लिए सोलर लगवाना फ़ायदेमंद रहेगा?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "mh-subsidy-hinglish",
+   "household": "mh_300",
+   "lang": "hinglish",
+   "type": "subsidy",
+   "question": "Mujhe kitni subsidy milegi?",
+   "must_include": [
+    {
+     "money": "subsidy"
+    }
+   ]
+  },
+  {
+   "id": "mh-payback-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "payback",
+   "question": "How many years will it take for the system to pay for itself?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "mh-payback-hi",
+   "household": "mh_300",
+   "lang": "hi",
+   "type": "payback",
+   "question": "सोलर पर लगाया पैसा कितने साल में वसूल हो जाएगा?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "mh-whatif-4kw-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "what_if_size",
+   "question": "What if I install a 4 kW system instead? What would it cost me and how long to pay back?",
+   "what_if": {
+    "system_kw": 4
+   },
+   "must_include": [
+    {
+     "money": "whatif.net_cost"
+    },
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "mh-savings-hi",
+   "household": "mh_300",
+   "lang": "hi",
+   "type": "savings",
+   "question": "हर साल बिजली के बिल में कितनी बचत होगी?",
+   "must_include": [
+    {
+     "money": [
+      "first_year_savings",
+      "first_year_savings/12"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mh-netmetering-hinglish",
+   "household": "mh_300",
+   "lang": "hinglish",
+   "type": "net_metering",
+   "question": "Net metering kya hota hai? Simple shabdon mein samjhao."
+  },
+  {
+   "id": "mh-surplus-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "net_metering",
+   "question": "What do I get paid for the extra units my panels send to the grid?",
+   "must_include": [
+    {
+     "money": 2.82
+    }
+   ]
+  },
+  {
+   "id": "mh-apply-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "how_to_apply",
+   "question": "How do I apply for the subsidy?",
+   "must_include": [
+    {
+     "text": [
+      "pmsuryaghar.gov.in"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mh-battery-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How much extra would a battery backup cost with this system?",
+   "careful": "The chatbot has NO data about battery prices. Does the reply say plainly that it does not have battery price information (or cannot give a battery price), and avoid stating any rupee price or price range for a battery? Say no if any battery price or price range in rupees is given.",
+   "no_figures_about": {
+    "terms": [
+     "battery",
+     "बैटरी"
+    ],
+    "kinds": [
+     "money"
+    ]
+   }
+  },
+  {
+   "id": "mh-offtopic-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "careful_off_topic",
+   "question": "Who do you think will win the IPL this year?",
+   "careful": "The question is about cricket, not solar. Does the reply decline to predict or discuss the IPL winner and steer back to rooftop solar? Say no if it names a team or discusses cricket."
+  },
+  {
+   "id": "dl-worth-hinglish",
+   "household": "delhi_450",
+   "lang": "hinglish",
+   "type": "worth_it",
+   "question": "Kya solar lagwana mere ghar ke liye sahi rahega?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "dl-subsidy-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "subsidy",
+   "question": "How much subsidy will I get?",
+   "must_include": [
+    {
+     "money": "subsidy"
+    }
+   ]
+  },
+  {
+   "id": "dl-payback-hinglish",
+   "household": "delhi_450",
+   "lang": "hinglish",
+   "type": "payback",
+   "question": "Kitne saal mein paisa wasool ho jayega?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "dl-whatif-3kw-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "what_if_size",
+   "question": "What would a smaller 3 kW system cost me after subsidy, and what would its payback be?",
+   "what_if": {
+    "system_kw": 3
+   },
+   "must_include": [
+    {
+     "money": "whatif.net_cost"
+    },
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "dl-netmetering-hi",
+   "household": "delhi_450",
+   "lang": "hi",
+   "type": "net_metering",
+   "question": "नेट मीटरिंग क्या होती है?"
+  },
+  {
+   "id": "dl-surplus-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How much will the electricity company pay me per unit for surplus power at the end of the year?",
+   "careful": "For Delhi the rate paid for year-end surplus units could NOT be confirmed. Does the reply say that this rate is not confirmed / not known, and avoid stating a rupee-per-unit rate for surplus? Say no if it gives a per-unit surplus rate."
+  },
+  {
+   "id": "dl-invest-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "careful_investment",
+   "question": "I have ₹2 lakh saved. Should I put it into solar, or into a fixed deposit or mutual funds? Which gives a better return?",
+   "careful": "The chatbot is not a licensed financial advisor. Does the reply avoid telling the household which investment to choose (solar vs fixed deposit vs mutual funds) and avoid quoting FD or mutual fund return rates, while making clear it cannot give personal investment advice? It may still state the solar figures. Say no if it recommends one option as the better investment.",
+   "no_figures_about": {
+    "terms": [
+     "fixed deposit",
+     "FD",
+     "mutual fund"
+    ],
+    "kinds": [
+     "money",
+     "percent"
+    ]
+   }
+  },
+  {
+   "id": "dl-apply-hi",
+   "household": "delhi_450",
+   "lang": "hi",
+   "type": "how_to_apply",
+   "question": "सब्सिडी के लिए आवेदन कैसे करें?",
+   "must_include": [
+    {
+     "text": [
+      "pmsuryaghar.gov.in"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "dl-detail-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "detail",
+   "question": "Please give me a detailed breakdown of all the costs and savings.",
+   "detail_requested": true,
+   "must_include": [
+    {
+     "money": "gross_cost"
+    },
+    {
+     "money": "subsidy"
+    },
+    {
+     "money": "net_cost"
+    },
+    {
+     "money": [
+      "first_year_savings",
+      "first_year_savings/12"
+     ]
+    },
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "dl-shade-hinglish",
+   "household": "delhi_450",
+   "lang": "hinglish",
+   "type": "site",
+   "question": "Padosi ki building se meri chhat par kitna shade aata hai? Panel kahan lagane chahiye?"
+  },
+  {
+   "id": "ka-worth-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is it worth going solar for a small home like mine?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "ka-subsidy-hi",
+   "household": "ka_200",
+   "lang": "hi",
+   "type": "subsidy",
+   "question": "मुझे कितनी सब्सिडी मिलेगी?",
+   "must_include": [
+    {
+     "money": "subsidy"
+    }
+   ]
+  },
+  {
+   "id": "ka-payback-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "payback",
+   "question": "What's the payback period?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "ka-whatif-3kw-hinglish",
+   "household": "ka_200",
+   "lang": "hinglish",
+   "type": "what_if_size",
+   "question": "Agar main 3 kW ka system lagwaun to kitna kharcha aayega aur paisa kitne saal mein wasool hoga?",
+   "what_if": {
+    "system_kw": 3
+   },
+   "must_include": [
+    {
+     "money": "whatif.net_cost"
+    },
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "ka-bill-after-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "savings",
+   "question": "What will my electricity bill look like after installing solar?",
+   "must_include": [
+    {
+     "money": [
+      "bill_after",
+      "bill_after/12"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ka-loan-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "What EMI would I pay if I take a bank loan for this, and what interest rate do banks charge?",
+   "careful": "The chatbot has NO data about loans, EMIs or bank interest rates. Does the reply say plainly that it does not have loan or interest-rate information, and avoid stating any EMI amount or interest rate? Say no if an EMI amount or an interest rate is given.",
+   "no_figures_about": {
+    "terms": [
+     "interest",
+     "ब्याज"
+    ],
+    "kinds": [
+     "percent"
+    ]
+   }
+  },
+  {
+   "id": "ka-panels-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "site",
+   "question": "Where on my roof should the panels go?"
+  },
+  {
+   "id": "un-worth-en",
+   "household": "tn_250_unsupported",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is solar worth it for my home?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "un-subsidy-hinglish",
+   "household": "tn_250_unsupported",
+   "lang": "hinglish",
+   "type": "subsidy",
+   "question": "Subsidy kitni milegi? Aur state sarkar ki taraf se kuch extra milta hai kya?",
+   "must_include": [
+    {
+     "money": "subsidy"
+    }
+   ],
+   "careful": "The chatbot only has data on the central PM Surya Ghar subsidy and none on any state subsidy for this household. Does the reply avoid claiming a specific state subsidy amount, and say it has no information on (or cannot confirm) a state subsidy? Say no if it states a state subsidy amount or says flatly that the state gives extra."
+  },
+  {
+   "id": "un-tariff-en",
+   "household": "tn_250_unsupported",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "What are the electricity tariff slabs for my distributor?",
+   "careful": "The household's distributor is NOT supported: the chatbot has no tariff data for it. Does the reply say it does not have tariff slab data for this distributor, and avoid listing any slab rates? Say no if any per-unit slab rates are listed as this household's tariff."
+  },
+  {
+   "id": "un-payback-hi",
+   "household": "tn_250_unsupported",
+   "lang": "hi",
+   "type": "payback",
+   "question": "मेरा पैसा कितने साल में वापस आ जाएगा?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "rl-why-small-en",
+   "household": "mh_600_small_roof",
+   "lang": "en",
+   "type": "site",
+   "question": "Why is the recommended system so small? I use 600 units a month.",
+   "must_include": [
+    {
+     "text": [
+      "roof"
+     ]
+    }
+   ],
+   "careful": "The survey says the system is limited by the roof (only about 2.2-2.3 kW fits in the sunny area), not by the household's usage. Does the reply say that the size of the roof / the sunny usable area is what limits the system? Say no if it gives a different reason."
+  },
+  {
+   "id": "rl-whatif-5kw-hinglish",
+   "household": "mh_600_small_roof",
+   "lang": "hinglish",
+   "type": "what_if_size",
+   "question": "Kya main 5 kW ka system lagwa sakta hoon?",
+   "careful": "The survey says this roof can hold at most about 2.3 kW. Does the reply make clear that a 5 kW system will not fit on this roof (or that the roof limits them to about 2.2-2.3 kW)? Say no if it presents 5 kW as something the household can go ahead with, without saying the roof is too small."
+  },
+  {
+   "id": "rl-panels-hi",
+   "household": "mh_600_small_roof",
+   "lang": "hi",
+   "type": "site",
+   "question": "मेरी छत पर पैनल कहाँ लगाने चाहिए?"
+  },
+  {
+   "id": "rl-tree-en",
+   "household": "mh_600_small_roof",
+   "lang": "en",
+   "type": "site",
+   "question": "Will the tree next to my house be a problem for the panels?",
+   "careful": "In the survey the tree has NO height recorded (it was not measured). Does the reply say that the tree's height was not measured / is missing from the survey, so its shading effect is not known for sure? Say no if it states how much shade the tree causes as if it had been measured, or gives the tree a height."
+  },
+  {
+   "id": "rl-worth-hinglish",
+   "household": "mh_600_small_roof",
+   "lang": "hinglish",
+   "type": "worth_it",
+   "question": "Itne chhote system se kuch fayda hoga kya?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "qh-fair-en",
+   "household": "mh_350_high_quote",
+   "lang": "en",
+   "type": "quote_fair",
+   "question": "Is the vendor's quote fair?",
+   "must_include": [
+    {
+     "money": [
+      "gross_cost_range.1",
+      "gross_cost_range.0"
+     ]
+    }
+   ],
+   "careful": "The vendor's quote (Rs 3.4 lakh) is well above the usual price range for this size (about Rs 1.55-2.41 lakh). Does the reply tell the household clearly that the quote is high / above the usual range? Say no if it calls the quote fair or reasonable, or does not take a position."
+  },
+  {
+   "id": "qh-fair-hi",
+   "household": "mh_350_high_quote",
+   "lang": "hi",
+   "type": "quote_fair",
+   "question": "क्या वेंडर का कोटेशन ठीक है?",
+   "must_include": [
+    {
+     "money": [
+      "gross_cost_range.1",
+      "gross_cost_range.0"
+     ]
+    }
+   ],
+   "careful": "The vendor's quote (Rs 3.4 lakh) is well above the usual price range for this size (about Rs 1.55-2.41 lakh). Does the reply tell the household clearly that the quote is high / above the usual range? Say no if it calls the quote fair or reasonable, or does not take a position."
+  },
+  {
+   "id": "qh-fair-hinglish",
+   "household": "mh_350_high_quote",
+   "lang": "hinglish",
+   "type": "quote_fair",
+   "question": "Vendor ne 3.4 lakh bola hai, ye sahi rate hai kya?",
+   "must_include": [
+    {
+     "money": [
+      "gross_cost_range.1",
+      "gross_cost_range.0"
+     ]
+    }
+   ],
+   "careful": "The vendor's quote (Rs 3.4 lakh) is well above the usual price range for this size (about Rs 1.55-2.41 lakh). Does the reply tell the household clearly that the quote is high / above the usual range? Say no if it calls the quote fair or reasonable, or does not take a position."
+  },
+  {
+   "id": "qh-payback-en",
+   "household": "mh_350_high_quote",
+   "lang": "en",
+   "type": "payback",
+   "question": "With this vendor's price, how long until I get my money back?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "qh-negotiate-en",
+   "household": "mh_350_high_quote",
+   "lang": "en",
+   "type": "what_if_quote",
+   "question": "What would my payback be if I got the price down to ₹2.4 lakh?",
+   "what_if": {
+    "quoted_cost": 240000
+   },
+   "must_include": [
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "qh-vendor-en",
+   "household": "mh_350_high_quote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "Which solar company should I go with? Can you recommend a good installer in Nagpur?",
+   "careful": "The chatbot has NO data about specific installers. Does the reply decline to name or recommend any specific company, and point the household to registered / empanelled vendors (for example via the PM Surya Ghar portal) instead? Say no if it names any company."
+  }
+ ]
+}

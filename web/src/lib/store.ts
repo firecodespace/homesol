@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { reportVerdict } from "./feedback";
 import type { LngLat } from "./geo/local";
 import type { ImageryInfo } from "./imagery";
 import type { HorizonProfile } from "./solar/horizon";
@@ -31,6 +32,9 @@ export interface Obstruction {
   label?: string;
   /** Proposed by automatic detection and not yet checked by the user. */
   suggested?: boolean;
+  /** The detection run that proposed this obstruction, and its position in that run. */
+  detectionId?: string;
+  modelIndex?: number;
 }
 
 interface State {
@@ -51,6 +55,10 @@ interface State {
   monthlyBill: number | null;
   /** A vendor's quote in rupees before subsidy, if the user has one. */
   quotedCost: number | null;
+  /** Sanctioned load in kW, when read from the bill. */
+  sanctionedLoadKw: number | null;
+  /** Latest detection run on this roof; hand-drawn obstructions after it count as its misses. */
+  lastDetectionId: string | null;
   /** Chosen electricity distributor; null until matched from the roof's location. */
   discomId: string | null;
   showSunMap: boolean;
@@ -71,14 +79,14 @@ interface State {
   setFloors(floors: number): void;
   updateObstruction(id: string, patch: Partial<Omit<Obstruction, "id">>): void;
   removeObstruction(id: string): void;
-  addObstructions(found: Obstruction[]): void;
+  addObstructions(found: Obstruction[], detectionId: string | null): void;
   setPreview(patch: Partial<State["preview"]>): void;
   requestFlyTo(p: LngLat | null): void;
   setHorizon(horizon: HorizonProfile | null): void;
   setScanOpen(open: boolean): void;
   setShowSunMap(show: boolean): void;
   setMonthlyUnits(units: number | null): void;
-  setMoney(patch: Partial<Pick<State, "monthlyBill" | "quotedCost" | "discomId">>): void;
+  setMoney(patch: Partial<Pick<State, "monthlyBill" | "quotedCost" | "discomId" | "sanctionedLoadKw">>): void;
 }
 
 export const useStore = create<State>()(
@@ -95,6 +103,8 @@ export const useStore = create<State>()(
       monthlyUnits: null,
       monthlyBill: null,
       quotedCost: null,
+      sanctionedLoadKw: null,
+      lastDetectionId: null,
       discomId: null,
       showSunMap: true,
       preview: { month: 12, minutes: 11 * 60 },
@@ -129,6 +139,8 @@ export const useStore = create<State>()(
             mode: "idle",
             draft: [],
           });
+          const { lastDetectionId, roof } = get();
+          if (lastDetectionId && roof) reportVerdict("missed", lastDetectionId, obstruction, roof);
         }
       },
       cancel: () => set({ mode: "idle", draft: [], measureTarget: null }),
@@ -138,6 +150,7 @@ export const useStore = create<State>()(
           obstructions: [],
           horizon: null,
           discomId: null,
+          lastDetectionId: null,
           mode: "idle",
           draft: [],
           measureTarget: null,
@@ -153,8 +166,11 @@ export const useStore = create<State>()(
         set((s) => ({
           obstructions: s.obstructions.filter((o) => o.id !== id),
         })),
-      addObstructions: (found) =>
-        set((s) => ({ obstructions: [...s.obstructions, ...found] })),
+      addObstructions: (found, detectionId) =>
+        set((s) => ({
+          obstructions: [...s.obstructions, ...found],
+          lastDetectionId: detectionId ?? s.lastDetectionId,
+        })),
       setPreview: (patch) =>
         set((s) => ({ preview: { ...s.preview, ...patch } })),
       requestFlyTo: (flyTo) => set({ flyTo }),
@@ -168,7 +184,7 @@ export const useStore = create<State>()(
       name: "homesol-survey",
       // Rehydrated from Planner after mount so server and first client render match.
       skipHydration: true,
-      partialize: ({ roof, floors, obstructions, horizon, monthlyUnits, monthlyBill, quotedCost, discomId }) => ({
+      partialize: ({
         roof,
         floors,
         obstructions,
@@ -177,6 +193,19 @@ export const useStore = create<State>()(
         monthlyBill,
         quotedCost,
         discomId,
+        sanctionedLoadKw,
+        lastDetectionId,
+      }) => ({
+        roof,
+        floors,
+        obstructions,
+        horizon,
+        monthlyUnits,
+        monthlyBill,
+        quotedCost,
+        discomId,
+        sanctionedLoadKw,
+        lastDetectionId,
       }),
     },
   ),

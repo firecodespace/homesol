@@ -33,7 +33,7 @@ function NumberField(props: { label: string; hint: string; value: number | null;
 }
 
 export default function MoneyStep({ analysis }: { analysis: ShadingResult }) {
-  const { roof, monthlyUnits, monthlyBill, quotedCost, discomId, setMoney } = useStore();
+  const { roof, monthlyUnits, monthlyBill, quotedCost, discomId, sanctionedLoadKw, setMoney } = useStore();
   const { sizing } = useSizing(analysis);
   const [policy, setPolicy] = useState<PolicyOverview | null>(null);
   const [result, setResult] = useState<{ finance: Finance } | { error: string } | null>(null);
@@ -70,6 +70,7 @@ export default function MoneyStep({ analysis }: { analysis: ShadingResult }) {
           discom_id: discom,
           monthly_bill: monthlyBill,
           quoted_cost: quotedCost,
+          sanctioned_load_kw: sanctionedLoadKw,
         },
         controller.signal,
       )
@@ -82,7 +83,7 @@ export default function MoneyStep({ analysis }: { analysis: ShadingResult }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, sizing, monthlyUnits, discom, monthlyBill, quotedCost]);
+  }, [ready, sizing, monthlyUnits, discom, monthlyBill, quotedCost, sanctionedLoadKw]);
 
   if (!monthlyUnits) return <p className="text-sm text-slate-400">Enter your monthly units in step 4 first.</p>;
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { centroid, localFrame, polygonArea } from "@/lib/geo/local";
 import { detectObstructions } from "@/lib/detect/detect";
+import { reportVerdict } from "@/lib/feedback";
 import { fetchImageryInfo, searchPlaces, type ImageryInfo, type Place } from "@/lib/imagery";
 import { horizonCoverage } from "@/lib/solar/horizon";
 import { USABLE_ACCESS, type ShadingResult } from "@/lib/solar/shading";
@@ -11,8 +12,10 @@ import { PANEL_KW, PERFORMANCE_RATIO } from "@/lib/solar/sizing";
 import { useSizing } from "@/lib/useSizing";
 import type { SunPosition } from "@/lib/solar/sun";
 import AdvisorChat from "./AdvisorChat";
+import BillUpload from "./BillUpload";
 import HorizonChart from "./HorizonChart";
 import MoneyStep from "./MoneyStep";
+import ShareSurvey from "./ShareSurvey";
 import { fmt, primary, secondary, Stat } from "./ui";
 import { FLOOR_HEIGHT_M, useStore, type Obstruction, type ObstructionKind } from "@/lib/store";
 
@@ -189,6 +192,17 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
   const measuring = mode === "measure" && measureTarget === o.id;
   const status = measureTarget === o.id ? measureStatus : null;
   const m = o.measurement;
+  const roof = useStore((s) => s.roof);
+
+  // A person's yes or no on each detection is what detection is scored and improved on.
+  const confirm = () => {
+    if (o.detectionId && roof) reportVerdict("confirmed", o.detectionId, o, roof);
+    updateObstruction(o.id, { suggested: false });
+  };
+  const reject = () => {
+    if (o.suggested && o.detectionId && roof) reportVerdict("rejected", o.detectionId, o, roof);
+    removeObstruction(o.id);
+  };
 
   return (
     <li className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
@@ -212,7 +226,7 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
         </select>
         <button
           className="text-xs text-slate-500 hover:text-rose-400"
-          onClick={() => removeObstruction(o.id)}
+          onClick={reject}
           aria-label={`Remove obstruction ${index + 1}`}
         >
           Remove
@@ -220,14 +234,20 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
       </div>
 
       {o.suggested && (
-        <div className="mt-2 flex items-start justify-between gap-2 rounded-md bg-violet-500/10 px-2 py-1.5 text-xs text-violet-200">
-          <span>
-            Found automatically{o.label ? `: ${o.label}` : ""}. Check the outline on the map and the height
-            {o.measurement ? " (measured from its shadow)" : " (a typical-size guess)"}.
-          </span>
-          <button className="shrink-0 font-medium hover:text-white" onClick={() => updateObstruction(o.id, { suggested: false })}>
-            Looks right
-          </button>
+        <div className="mt-2 rounded-md bg-violet-500/10 px-2 py-2 text-xs text-violet-200">
+          <p>
+            Found automatically{o.label ? `: ${o.label}` : ""}. Is this really something that could shade your roof?
+            Fix its type and height below first if they are off
+            {o.measurement ? " (height measured from its shadow)" : " (height is a typical-size guess)"}.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button className="rounded-md bg-violet-500/30 px-2 py-1 font-medium hover:bg-violet-500/50" onClick={confirm}>
+              Yes, it&apos;s there
+            </button>
+            <button className="rounded-md border border-violet-400/40 px-2 py-1 font-medium hover:bg-violet-500/20" onClick={reject}>
+              No, remove it
+            </button>
+          </div>
         </div>
       )}
 
@@ -347,12 +367,12 @@ function ObstructionsStep() {
     setDetecting(true);
     setDetectNote(null);
     try {
-      const found = await detectObstructions(roof);
-      addObstructions(found);
+      const { detectionId, obstructions: found } = await detectObstructions(roof);
+      addObstructions(found, detectionId);
       setDetectNote({
         ok: true,
         text: found.length
-          ? `Found ${found.length} possible obstruction${found.length > 1 ? "s" : ""}. Check each one below.`
+          ? `Found ${found.length} possible obstruction${found.length > 1 ? "s" : ""}. Say yes or no to each one below, and add any it missed.`
           : "Nothing that would shade this roof was found. Add anything it missed by hand.",
       });
     } catch (err) {
@@ -371,6 +391,10 @@ function ObstructionsStep() {
         {detecting ? "Looking at the satellite image…" : "Find obstructions for me"}
       </button>
       {detectNote && <p className={`text-xs ${detectNote.ok ? "text-slate-400" : "text-rose-300"}`}>{detectNote.text}</p>}
+      <p className="text-xs text-slate-500">
+        Your yes and no answers, with the roof&apos;s outline and location, are saved to make detection better. No
+        name or contact details are attached.
+      </p>
       {obstructions.length > 0 && (
         <ul className="space-y-2">
           {obstructions.map((o, i) => (
@@ -493,6 +517,7 @@ function SizingStep({ analysis }: { analysis: ShadingResult }) {
 
   return (
     <div className="space-y-4">
+      <BillUpload />
       <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
         Units on a typical monthly bill
         <span className="flex items-center gap-2">
@@ -581,6 +606,11 @@ export default function Sidebar({ analysis, sun }: { analysis: ShadingResult | n
       {analysis && (
         <Section step={6} title="Ask the advisor">
           <AdvisorChat analysis={analysis} />
+        </Section>
+      )}
+      {roof && (
+        <Section step={7} title="Save and share">
+          <ShareSurvey />
         </Section>
       )}
     </aside>

@@ -1,0 +1,362 @@
+{
+ "code_under_test": {
+  "git_commit": "df72cdc",
+  "uncommitted_under_api": [],
+  "note": "Written after the run. Files under api/homesol and api/data were being edited by someone else while this run was in progress (finance.py, policy.py, policies.json and agents.py were rewritten at 17:11, the run started at 17:08). The run used the versions loaded at 17:08: every baseline in the saved prompts and every saved tool output equals what commit df72cdc computes (44/44 and 19/19). It does NOT reflect the tariff data now in the working tree."
+ },
+ "cases": 44,
+ "answered": 44,
+ "errored": [],
+ "latency_s": {
+  "median": 9.68,
+  "p90": 20.21,
+  "max": 27.8
+ },
+ "tools": {
+  "site_analyst": 8,
+  "policy_finance_analyst": 27,
+  "lookup_policy": 9,
+  "estimate_finances": 17
+ },
+ "no_tool_called": [
+  "mh-worth-en",
+  "mh-payback-en",
+  "mh-payback-hi",
+  "mh-netmetering-hinglish",
+  "mh-offtopic-en",
+  "dl-subsidy-en",
+  "dl-netmetering-hi",
+  "ka-subsidy-hi",
+  "ka-payback-en",
+  "ka-bill-after-en",
+  "un-payback-hi",
+  "qh-payback-en"
+ ],
+ "deterministic": {
+  "language_match": {
+   "passed": 42,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.955,
+   "failed_ids": [
+    "rl-worth-hinglish",
+    "qh-fair-hinglish"
+   ]
+  },
+  "rupee_figures_traceable": {
+   "passed": 30,
+   "scored": 32,
+   "not_applicable": 12,
+   "rate": 0.938,
+   "failed_ids": [
+    "mh-payback-hi",
+    "dl-invest-en"
+   ]
+  },
+  "year_figures_traceable": {
+   "passed": 24,
+   "scored": 24,
+   "not_applicable": 20,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "other_figures_traceable": {
+   "passed": 18,
+   "scored": 21,
+   "not_applicable": 23,
+   "rate": 0.857,
+   "failed_ids": [
+    "dl-invest-en",
+    "rl-why-small-en",
+    "rl-whatif-5kw-hinglish"
+   ]
+  },
+  "figures_match_their_label": {
+   "passed": 28,
+   "scored": 29,
+   "not_applicable": 15,
+   "rate": 0.966,
+   "failed_ids": [
+    "mh-worth-en"
+   ]
+  },
+  "monthly_yearly_not_confused": {
+   "passed": 16,
+   "scored": 17,
+   "not_applicable": 27,
+   "rate": 0.941,
+   "failed_ids": [
+    "mh-worth-en"
+   ]
+  },
+  "no_figures_for_unknowns": {
+   "passed": 1,
+   "scored": 3,
+   "not_applicable": 41,
+   "rate": 0.333,
+   "failed_ids": [
+    "mh-battery-en",
+    "dl-invest-en"
+   ]
+  },
+  "links_from_policy_data": {
+   "passed": 6,
+   "scored": 7,
+   "not_applicable": 37,
+   "rate": 0.857,
+   "failed_ids": [
+    "dl-detail-en"
+   ]
+  },
+  "required_facts_present": {
+   "passed": 30,
+   "scored": 30,
+   "not_applicable": 14,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "under_150_words": {
+   "passed": 40,
+   "scored": 43,
+   "not_applicable": 1,
+   "rate": 0.93,
+   "failed_ids": [
+    "mh-apply-en",
+    "dl-invest-en",
+    "dl-apply-hi"
+   ]
+  },
+  "no_markdown": {
+   "passed": 36,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.818,
+   "failed_ids": [
+    "mh-worth-hi",
+    "mh-whatif-4kw-en",
+    "mh-apply-en",
+    "dl-apply-hi",
+    "dl-detail-en",
+    "rl-worth-hinglish",
+    "qh-fair-hi",
+    "qh-vendor-en"
+   ]
+  },
+  "no_leaked_reasoning": {
+   "passed": 31,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.705,
+   "failed_ids": [
+    "mh-worth-en",
+    "mh-payback-en",
+    "mh-payback-hi",
+    "mh-netmetering-hinglish",
+    "dl-subsidy-en",
+    "dl-netmetering-hi",
+    "ka-worth-en",
+    "ka-subsidy-hi",
+    "ka-payback-en",
+    "ka-bill-after-en",
+    "un-payback-hi",
+    "rl-whatif-5kw-hinglish",
+    "qh-payback-en"
+   ]
+  },
+  "no_internal_names": {
+   "passed": 41,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.932,
+   "failed_ids": [
+    "ka-loan-en",
+    "un-tariff-en",
+    "qh-vendor-en"
+   ]
+  },
+  "unverified_data_flagged": {
+   "passed": 4,
+   "scored": 12,
+   "not_applicable": 32,
+   "rate": 0.333,
+   "failed_ids": [
+    "mh-worth-en",
+    "mh-worth-hi",
+    "mh-payback-en",
+    "mh-payback-hi",
+    "mh-whatif-4kw-en",
+    "dl-worth-hinglish",
+    "dl-invest-en",
+    "rl-worth-hinglish"
+   ]
+  },
+  "what_if_recalculated": {
+   "passed": 4,
+   "scored": 4,
+   "not_applicable": 40,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "tool_arguments_justified": {
+   "passed": 17,
+   "scored": 17,
+   "not_applicable": 27,
+   "rate": 1.0,
+   "failed_ids": []
+  }
+ },
+ "graded": {
+  "first_sentence_answers": {
+   "passed": 35,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.795,
+   "failed_ids": [
+    "mh-whatif-4kw-en",
+    "mh-surplus-en",
+    "dl-surplus-en",
+    "dl-invest-en",
+    "dl-shade-hinglish",
+    "ka-panels-en",
+    "rl-tree-en",
+    "qh-fair-en",
+    "qh-fair-hi"
+   ]
+  },
+  "layperson_clear": {
+   "passed": 20,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.455,
+   "failed_ids": [
+    "mh-worth-hi",
+    "mh-subsidy-hinglish",
+    "mh-payback-en",
+    "mh-whatif-4kw-en",
+    "mh-savings-hi",
+    "mh-surplus-en",
+    "mh-apply-en",
+    "dl-worth-hinglish",
+    "dl-subsidy-en",
+    "dl-whatif-3kw-en",
+    "dl-netmetering-hi",
+    "dl-surplus-en",
+    "dl-detail-en",
+    "ka-payback-en",
+    "ka-whatif-3kw-hinglish",
+    "un-subsidy-hinglish",
+    "un-tariff-en",
+    "rl-worth-hinglish",
+    "qh-fair-en",
+    "qh-fair-hi",
+    "qh-fair-hinglish",
+    "qh-payback-en",
+    "qh-negotiate-en",
+    "qh-vendor-en"
+   ]
+  },
+  "careful_handling": {
+   "passed": 12,
+   "scored": 14,
+   "not_applicable": 0,
+   "rate": 0.857,
+   "failed_ids": [
+    "mh-battery-en",
+    "rl-whatif-5kw-hinglish"
+   ]
+  },
+  "flags_unverified": {
+   "passed": 4,
+   "scored": 12,
+   "not_applicable": 0,
+   "rate": 0.333,
+   "failed_ids": [
+    "mh-worth-en",
+    "mh-worth-hi",
+    "mh-payback-en",
+    "mh-payback-hi",
+    "mh-whatif-4kw-en",
+    "dl-worth-hinglish",
+    "dl-invest-en",
+    "rl-worth-hinglish"
+   ]
+  }
+ },
+ "deterministic_by_language": {
+  "en": {
+   "language_match": 1.0,
+   "rupee_figures_traceable": 0.947,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 0.8,
+   "figures_match_their_label": 0.938,
+   "monthly_yearly_not_confused": 0.9,
+   "no_figures_for_unknowns": 0.333,
+   "links_from_policy_data": 0.75,
+   "required_facts_present": 1.0,
+   "under_150_words": 0.917,
+   "no_markdown": 0.84,
+   "no_leaked_reasoning": 0.72,
+   "no_internal_names": 0.88,
+   "unverified_data_flagged": 0.333,
+   "what_if_recalculated": 1.0,
+   "tool_arguments_justified": 1.0
+  },
+  "hi": {
+   "language_match": 1.0,
+   "rupee_figures_traceable": 0.833,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 1.0,
+   "under_150_words": 0.889,
+   "no_markdown": 0.667,
+   "no_leaked_reasoning": 0.556,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": 0.333,
+   "what_if_recalculated": null,
+   "tool_arguments_justified": 1.0
+  },
+  "hinglish": {
+   "language_match": 0.8,
+   "rupee_figures_traceable": 1.0,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 0.857,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 1.0,
+   "under_150_words": 1.0,
+   "no_markdown": 0.9,
+   "no_leaked_reasoning": 0.8,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": 0.333,
+   "what_if_recalculated": 1.0,
+   "tool_arguments_justified": 1.0
+  }
+ },
+ "graded_by_language": {
+  "en": {
+   "first_sentence_answers": 0.72,
+   "layperson_clear": 0.44,
+   "careful_handling": 0.9,
+   "flags_unverified": 0.333
+  },
+  "hi": {
+   "first_sentence_answers": 0.889,
+   "layperson_clear": 0.556,
+   "careful_handling": 1.0,
+   "flags_unverified": 0.333
+  },
+  "hinglish": {
+   "first_sentence_answers": 0.9,
+   "layperson_clear": 0.4,
+   "careful_handling": 0.667,
+   "flags_unverified": 0.333
+  }
+ },
+ "all_deterministic_checks_passed": 16
+}

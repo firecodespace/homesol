@@ -24,21 +24,41 @@
       "state": "Maharashtra",
       "tariff": {
         "slabs": [
-          { "up_to": 100, "rate": 3.25 },
-          { "up_to": 300, "rate": 6.14 },
-          { "up_to": 500, "rate": 8.45 },
-          { "up_to": null, "rate": 9.56 }
+          {
+            "up_to": 100,
+            "rate": 5.56
+          },
+          {
+            "up_to": 300,
+            "rate": 12.4
+          },
+          {
+            "up_to": 500,
+            "rate": 16.64
+          },
+          {
+            "up_to": null,
+            "rate": 19.13
+          }
         ],
-        "fixed_charge": 150,
-        "excludes": "Wheeling charge, fuel adjustment charge and electricity duty, which add to every unit.",
-        "source": "https://desiutility.com/electricity/tariffs/msedcl",
-        "verified": false
+        "fixed_charge": {
+          "type": "flat",
+          "amount": 130
+        },
+        "surcharge_percent": 0,
+        "includes": "Energy charge plus the Rs 1.60 wheeling charge on every unit, LT I(B) Residential, from 1 April 2026.",
+        "excludes": "Fuel adjustment charge and electricity duty, which add to every unit, so real savings are somewhat higher.",
+        "order": "MERC Case No. 75 of 2025, order dated 25 March 2026",
+        "source": "https://www.mahadiscom.in/wp-content/uploads/2026/07/Tariff-Order_Case-No.-75-of-2025-dated-25th-March-2026.pdf",
+        "verified": true
       },
       "net_metering": {
+        "settlement": "annual",
         "surplus_rate": 2.82,
-        "summary": "Units you export offset units you import. Surplus left at the end of the year is paid at Rs 2.82 per unit, fixed by MERC for five years from April 2026.",
-        "source": "https://mercomindia.com/maharashtra-tariff-for-surplus-rooftop-solar-power-in-fy-2027",
-        "verified": true
+        "summary": "Units you export offset units you import, and extra units carry forward month to month. Units still unused at the end of the financial year are bought at that year's generic tariff, reported as Rs 2.82 per unit for 2026-27. Systems up to 10 kW pay no grid support charge.",
+        "source": "https://merc.gov.in/wp-content/uploads/2022/07/Grid-Interactive-RRE-Regulations2019-English.pdf",
+        "note": "The carry-forward rule is from the MERC 2019 regulations. The Rs 2.82 rate is from trade press; the MERC order itself was not located.",
+        "verified": false
       }
     },
     "delhi": {
@@ -46,21 +66,65 @@
       "state": "Delhi",
       "tariff": {
         "slabs": [
-          { "up_to": 200, "rate": 3.0 },
-          { "up_to": 400, "rate": 6.25 },
-          { "up_to": 800, "rate": 6.75 },
-          { "up_to": null, "rate": 8.0 }
+          {
+            "up_to": 200,
+            "rate": 3.0
+          },
+          {
+            "up_to": 400,
+            "rate": 4.5
+          },
+          {
+            "up_to": 800,
+            "rate": 6.5
+          },
+          {
+            "up_to": 1200,
+            "rate": 7.0
+          },
+          {
+            "up_to": null,
+            "rate": 8.0
+          }
         ],
-        "fixed_charge": 125,
-        "excludes": "PPAC surcharge, electricity duty and the Delhi government's subsidy on the first 200 units.",
-        "source": "https://desiutility.com/electricity/tariffs/delhi",
-        "verified": false
+        "fixed_charge": {
+          "type": "per_kw",
+          "bands": [
+            {
+              "up_to_kw": 2,
+              "rate": 20
+            },
+            {
+              "up_to_kw": 5,
+              "rate": 50
+            },
+            {
+              "up_to_kw": 15,
+              "rate": 100
+            },
+            {
+              "up_to_kw": 25,
+              "rate": 200
+            },
+            {
+              "up_to_kw": null,
+              "rate": 250
+            }
+          ]
+        },
+        "surcharge_percent": 15,
+        "includes": "DERC domestic slabs still in force from the 2021-22 schedule, plus the 8% deficit-recovery and 7% pension surcharges on fixed and energy charges.",
+        "excludes": "The monthly power-purchase adjustment (about 10% to 18% during 2026), electricity tax and the Delhi government's subsidy for low usage.",
+        "order": "DERC tariff order dated 30 September 2021 (no later order issued)",
+        "source": "https://www.bsesdelhi.com/web/brpl/currently-applicable-tariff-schedule",
+        "verified": true
       },
       "net_metering": {
+        "settlement": "annual",
         "surplus_rate": null,
-        "summary": "Net metering is available and DERC shortened the application to two stages in July 2026. The rate paid for year-end surplus could not be confirmed from a DERC order.",
-        "source": "https://solarquarter.com/2026/07/20/delhi-unveils-derc-net-metering-guidelines-2026-to-fast-track-rooftop-solar-connections-in-delhi/",
-        "verified": false
+        "summary": "Units you export offset units you import, and extra units carry forward month to month. Units left at the end of the financial year are paid at the average power purchase cost set by DERC, a figure that could not be confirmed.",
+        "source": "https://www.bsesdelhi.com/documents/55701/1611949183/RTS_FAQ_Sep25.pdf",
+        "verified": true
       }
     },
     "bescom": {
@@ -68,21 +132,104 @@
       "state": "Karnataka",
       "tariff": {
         "slabs": [
-          { "up_to": 30, "rate": 2.85 },
-          { "up_to": 100, "rate": 4.15 },
-          { "up_to": 200, "rate": 5.69 },
-          { "up_to": 400, "rate": 7.01 },
-          { "up_to": null, "rate": 8.16 }
+          {
+            "up_to": null,
+            "rate": 5.8
+          }
         ],
-        "fixed_charge": 135,
-        "excludes": "Fuel surcharge, the pension surcharge and electricity duty. Other reports put KERC's 2026-27 energy charge at about Rs 5.80 a unit, so treat these slabs with caution.",
-        "source": "https://desiutility.com/electricity/tariffs/bescom",
-        "verified": false
+        "fixed_charge": {
+          "type": "per_kw",
+          "bands": [
+            {
+              "up_to_kw": null,
+              "rate": 150
+            }
+          ]
+        },
+        "surcharge_percent": 0,
+        "includes": "KERC's single domestic rate of Rs 5.80 a unit for 2026-27.",
+        "excludes": "The monthly fuel adjustment, the pension surcharge (reported as 35 paise a unit) and tax on electricity.",
+        "order": "KERC Tariff Order 2025 dated 27 March 2025, control period 2025-26 to 2027-28",
+        "source": "https://kerc.karnataka.gov.in/uploads/85821743074692.pdf",
+        "verified": true
       },
       "net_metering": {
-        "surplus_rate": null,
-        "summary": "Net metering is available. KERC revised rooftop tariffs in August 2026, and the rate for household surplus under PM Surya Ghar could not be confirmed.",
-        "source": "https://www.reslink.org/blogs/karnataka-solar-tariffs-2026-29-net-metering-bess-rules/",
+        "settlement": "monthly",
+        "surplus_rate": [
+          {
+            "up_to_kw": 2,
+            "rate": 1.96
+          },
+          {
+            "up_to_kw": 3,
+            "rate": 2.14
+          },
+          {
+            "up_to_kw": null,
+            "rate": 2.58
+          }
+        ],
+        "summary": "For systems agreed from 24 August 2026 there is no carry-forward: each month's extra units are bought by BESCOM at a fixed rate, which for homes taking the PM Surya Ghar subsidy is Rs 1.96 to Rs 2.58 a unit depending on system size.",
+        "source": "https://kerc.karnataka.gov.in/uploads/48561787653428.pdf",
+        "verified": true
+      }
+    },
+    "gujarat": {
+      "name": "Gujarat state DISCOMs (DGVCL, MGVCL, PGVCL, UGVCL)",
+      "state": "Gujarat",
+      "tariff": {
+        "slabs": [
+          {
+            "up_to": 50,
+            "rate": 5.5
+          },
+          {
+            "up_to": 100,
+            "rate": 5.95
+          },
+          {
+            "up_to": 250,
+            "rate": 6.6
+          },
+          {
+            "up_to": null,
+            "rate": 7.65
+          }
+        ],
+        "fixed_charge": {
+          "type": "by_load",
+          "bands": [
+            {
+              "up_to_kw": 2,
+              "amount": 15
+            },
+            {
+              "up_to_kw": 4,
+              "amount": 25
+            },
+            {
+              "up_to_kw": 6,
+              "amount": 45
+            },
+            {
+              "up_to_kw": null,
+              "amount": 70
+            }
+          ]
+        },
+        "surcharge_percent": 3.99,
+        "includes": "Urban residential (RGP) energy charge plus the Rs 2.45 base fuel surcharge on every unit and the 3.99% variable fuel surcharge, as applied from July 2026.",
+        "excludes": "Electricity duty. Homes with a smart meter also get 60 paise a unit off between 11 am and 5 pm, which slightly lowers what solar saves.",
+        "order": "GERC tariff orders dated 25 March 2026, effective 1 April 2026",
+        "source": "https://gercin.org/tariff_schedule",
+        "verified": true
+      },
+      "net_metering": {
+        "settlement": "monthly",
+        "surplus_rate": 2.25,
+        "summary": "Solar units are set against your usage within each billing cycle, and extra units are reported to be bought at Rs 2.25 a unit.",
+        "source": "https://gercin.org/regulations/re_regulations",
+        "note": "The Rs 2.25 rate comes from summaries of the Gujarat Solar Policy 2021; whether it applies to systems installed in 2026 was not confirmed.",
         "verified": false
       }
     }

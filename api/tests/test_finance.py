@@ -11,14 +11,31 @@ def test_central_subsidy_tiers(kw, expected):
 
 
 def test_slab_bill_charges_each_slab_at_its_own_rate():
-    # 150 fixed + 100 x 3.25 + 200 x 6.14 + 50 x 8.45
-    assert finance.slab_bill(350, MSEDCL) == pytest.approx(150 + 325 + 1228 + 422.5)
-    assert finance.slab_bill(0, MSEDCL) == 150
+    # 130 fixed + 100 x 5.56 + 200 x 12.40 + 50 x 16.64
+    assert finance.slab_bill(350, MSEDCL) == pytest.approx(130 + 556 + 2480 + 832)
+    assert finance.slab_bill(0, MSEDCL) == 130
+
+
+def test_fixed_charge_follows_each_distributors_rule():
+    delhi = policy.get_discom("delhi")["tariff"]
+    gujarat = policy.get_discom("gujarat")["tariff"]
+    bescom = policy.get_discom("bescom")["tariff"]
+    assert finance.fixed_charge(MSEDCL, 3) == 130
+    assert finance.fixed_charge(delhi, 2) == 40 and finance.fixed_charge(delhi, 3) == 150
+    assert finance.fixed_charge(gujarat, 3) == 25
+    assert finance.fixed_charge(bescom, 3) == 450
+
+
+def test_percentage_surcharge_applies_to_fixed_and_energy_charges():
+    delhi = policy.get_discom("delhi")["tariff"]
+    # (3 kW x 50 fixed + 200 x 3.00 + 100 x 4.50) x 1.15
+    assert finance.slab_bill(300, delhi, 3) == pytest.approx((150 + 600 + 450) * 1.15)
 
 
 def test_state_maps_to_discom():
     assert policy.discom_for_state("Maharashtra") == "msedcl"
     assert policy.discom_for_state(" NCT of Delhi ") == "delhi"
+    assert policy.discom_for_state("Gujarat") == "gujarat"
     assert policy.discom_for_state("Kerala") is None
 
 
@@ -27,19 +44,35 @@ def test_system_matching_usage_cuts_the_bill_to_the_fixed_charge():
     assert f.subsidy == 73500
     assert f.gross_cost == 165000
     assert f.net_cost == 91500
-    assert f.bill_after == 150 * 12
+    assert f.bill_before == round((130 + 556 + 2480) * 12)
+    assert f.bill_after == 130 * 12
     assert f.first_year_savings == f.bill_before - f.bill_after
-    assert 3 < f.payback_years < 7
+    assert 2 < f.payback_years < 4
     assert f.lifetime_savings > f.net_cost
 
 
-def test_summer_surplus_carries_into_monsoon_months():
+def test_annual_settlement_carries_summer_surplus_into_monsoon_months():
     seasonal = [400, 400, 400, 400, 400, 400, 200, 200, 200, 200, 200, 200]
     flat = [300] * 12
     kwargs = dict(system_kw=2.75, monthly_usage=300, discom_id="msedcl")
     assert finance.estimate(monthly_generation=seasonal, **kwargs).bill_after == finance.estimate(
         monthly_generation=flat, **kwargs
     ).bill_after
+
+
+def test_monthly_settlement_pays_each_months_surplus_and_carries_nothing():
+    seasonal = [400] * 6 + [200] * 6
+    f = finance.estimate(system_kw=2.75, monthly_generation=seasonal, monthly_usage=300, discom_id="bescom")
+    # Six months export 100 units each at the 2 to 3 kW rate; six months still buy 100 units.
+    assert f.surplus_units == 600
+    assert f.surplus_credit == round(600 * 2.14)
+    assert f.bill_after == round((450 + 0) * 6 + (450 + 100 * 5.80) * 6)
+
+
+def test_surplus_rate_depends_on_system_size_where_the_regulator_says_so():
+    bescom = policy.get_discom("bescom")
+    assert [policy.surplus_rate(bescom, kw) for kw in (1.65, 2.75, 4.4)] == [1.96, 2.14, 2.58]
+    assert policy.surplus_rate(policy.get_discom("msedcl"), 5) == 2.82
 
 
 def test_year_end_surplus_is_paid_at_the_discom_rate_or_flagged():
@@ -83,3 +116,43 @@ def test_advisor_finances_come_from_the_survey_and_scale_with_size():
     assert smaller["first_year_savings"] < base["first_year_savings"]
 
     assert "error" in baseline_finances({"household": {}, "recommended_system": None})
+
+
+SURVEY = {
+    "roof": {"area_m2": 80, "usable_area_m2": 70, "yearly_sun_reaching_roof": 0.95, "max_system_kw": 7, "height_m": 6, "skyline_scanned": True},
+    "obstructions": [{"kind": "tank", "height_m": 2, "height_from": "roof", "height_source": "entered by user"}],
+    "household": {"monthly_units": 300, "discom_id": "msedcl", "monthly_bill_rupees": None, "vendor_quote_rupees": 340000},
+    "recommended_system": {"system_kw": 2.75, "panels": 5, "monthly_generation_units": [300] * 12, "share_of_usage_covered": 1.0, "limited_by": "usage"},
+}
+
+
+def test_fact_sheet_labels_periods_and_flags_an_overpriced_quote():
+    from homesol.agents import fact_sheet
+
+    facts = fact_sheet(SURVEY)
+    assert "PER YEAR" in facts and "a month)" in facts
+    assert "69% ABOVE the top of the usual range" in facts
+    assert "has been done." in facts
+    assert "Rs 3,40,000" not in facts and "Rs 340,000" in facts
+
+
+def test_what_if_size_does_not_reuse_the_quote_for_the_recommended_size():
+    from homesol.agents import baseline_finances
+
+    assert baseline_finances(SURVEY)["cost_is_quote"] is True
+    assert baseline_finances(SURVEY, system_kw=1.65)["cost_is_quote"] is False
+
+
+def test_clean_answer_strips_reasoning_markdown_and_unknown_links():
+    from homesol.agents import clean_answer
+
+    raw = (
+        "<thinking> The household wants the subsidy. </thinking>\n\n"
+        "**Subsidy:** Rs 73,500. [Source](https://example.com/made-up) and "
+        "[apply here](https://pmsuryaghar.gov.in).\n# Next\n* Get a quote"
+    )
+    cleaned = clean_answer(raw)
+    assert "thinking" not in cleaned and "**" not in cleaned and "#" not in cleaned
+    assert "example.com" not in cleaned
+    assert "apply here (https://pmsuryaghar.gov.in)" in cleaned
+    assert cleaned.endswith("- Get a quote")

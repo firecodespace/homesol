@@ -18,5 +18,9 @@ export const DetectedObstruction = z.object({
   typical_height_m: z.number().describe("Best guess of height above the surface it stands on, from its type and size."),
 });
 
-export const Detection = z.object({ obstructions: z.array(DetectedObstruction) });
+export const Detection = z.object({
+  /** Reference for sending back verdicts on this run; null if the run could not be recorded. */
+  detection_id: z.string().nullable(),
+  obstructions: z.array(DetectedObstruction),
+});
 export type Detection = z.infer<typeof Detection>;

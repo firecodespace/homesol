@@ -16,7 +16,9 @@ const PLAUSIBLE_HEIGHT_M: [number, number] = [0.5, 150];
  * answers into map obstructions. Heights come from the shadow geometry where
  * the model found a clean shadow, and from its typical-size guess otherwise.
  */
-export async function detectObstructions(roof: LngLat[]): Promise<Obstruction[]> {
+export async function detectObstructions(
+  roof: LngLat[],
+): Promise<{ detectionId: string | null; obstructions: Obstruction[] }> {
   const centre = centroid(roof);
   const [capture, imagery] = await Promise.all([captureRoof(roof), fetchImageryInfo(centre).catch(() => null)]);
 
@@ -35,13 +37,16 @@ export async function detectObstructions(roof: LngLat[]): Promise<Obstruction[]>
     shadow_bearing: shadowBearing,
   });
 
-  return Detection.parse(body).obstructions.flatMap((found): Obstruction[] => {
+  const detection = Detection.parse(body);
+  const obstructions = detection.obstructions.flatMap((found, modelIndex): Obstruction[] => {
     if (found.outline.length < 3) return [];
     const obstruction: Obstruction = {
       id: crypto.randomUUID(),
       kind: found.kind,
       label: found.label,
       suggested: true,
+      detectionId: detection.detection_id ?? undefined,
+      modelIndex,
       footprint: found.outline.map(capture.toLngLat),
       heightM: Math.round(found.typical_height_m * 10) / 10,
       reference: found.on_roof ? "roof" : "ground",
@@ -63,4 +68,5 @@ export async function detectObstructions(roof: LngLat[]): Promise<Obstruction[]>
     }
     return [obstruction];
   });
+  return { detectionId: detection.detection_id, obstructions };
 }

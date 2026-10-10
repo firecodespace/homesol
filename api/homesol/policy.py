@@ -11,6 +11,7 @@ STATE_TO_DISCOM = {
     "delhi": "delhi",
     "nct of delhi": "delhi",
     "karnataka": "bescom",
+    "gujarat": "gujarat",
 }
 
 
@@ -33,3 +34,11 @@ def central_subsidy(system_kw: float) -> int:
     first = min(system_kw, 2) * rules["per_kw_first_2kw"]
     third = min(max(system_kw - 2, 0), 1) * rules["per_kw_third_kw"]
     return round(min(first + third, rules["max_total"]))
+
+
+def surplus_rate(discom: dict, system_kw: float) -> float | None:
+    """Rupees per unit the distributor pays for extra solar units, for a system of this size."""
+    rate = discom["net_metering"]["surplus_rate"]
+    if isinstance(rate, list):
+        return next(band["rate"] for band in rate if band["up_to_kw"] is None or system_kw <= band["up_to_kw"])
+    return rate

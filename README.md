@@ -27,6 +27,14 @@ AWS_REGION=us-east-1
 
 `api/.venv/bin/python -m pytest api` runs the finance and policy tests.
 
+## Deployed
+
+- Site: https://main.d37cbq8cojkdix.amplifyapp.com (Amplify Hosting, static export of `web/`)
+- API: AWS Lambda `homesol-api` behind a function URL, running the same FastAPI app through Mangum. It reaches Bedrock, Transcribe and DynamoDB through its IAM role, so no key is stored in it.
+- Saved surveys: DynamoDB table `homesol-surveys`, items expire after 90 days.
+
+`scripts/deploy.sh` ships new code to both. It needs the AWS CLI logged in to the account that owns these resources.
+
 `pnpm test` runs the sun-position, shading, skyline and sizing unit tests.
 
 The rooftop skyline scan reads the phone's compass and tilt sensors, which browsers only expose over HTTPS. To try it on a phone on the same Wi-Fi, run `pnpm dev:https` and open `https://<your-computer's-ip>:3000` (accept the self-signed certificate warning).
@@ -40,3 +48,5 @@ The rooftop skyline scan reads the phone's compass and tilt sensors, which brows
 - **Cost, subsidy and savings** (`api/homesol/finance.py`): PM Surya Ghar subsidy tiers, net-metering bill savings month by month, payback and 25-year savings. Rules and tariffs live in `api/data/policies.json`, each with a source link and a `verified` flag.
 - **Advisor** (`api/homesol/agents.py`): a Strands Agents advisor that delegates to a site analyst and a policy-and-finance analyst. The agents get every figure from the survey or from tools over the same finance code.
 - **Automatic obstruction detection** (`web/src/app/api/detect/route.ts`): Claude on Bedrock proposes obstruction outlines from the satellite image; heights still come from the shadow calculation where a clean shadow is found.
+- **Voice questions** (`api/homesol/speech.py`): the advisor's microphone button records a clip, and Amazon Transcribe turns Indian English or Hindi speech into text.
+- **Save and share** (`api/homesol/surveys.py`): a survey is stored under a short code and opened from a link or QR code, which is how a roof outlined on a laptop reaches the phone for the rooftop scan.

@@ -1,0 +1,5 @@
+{
+ "git_commit": "df72cdc",
+ "uncommitted_under_api": [],
+ "note": "Written after the run. Files under api/homesol and api/data were being edited by someone else while this run was in progress (finance.py, policy.py, policies.json and agents.py were rewritten at 17:11, the run started at 17:08). The run used the versions loaded at 17:08: every baseline in the saved prompts and every saved tool output equals what commit df72cdc computes (44/44 and 19/19). It does NOT reflect the tariff data now in the working tree."
+}

@@ -1,0 +1,120 @@
+cases 44  answered 44  errored 0
+latency  median 9.68s  p90 20.21s  max 27.8s
+cases calling each tool: site_analyst 8, policy_finance_analyst 27, lookup_policy 9, estimate_finances 17; none at all 12
+cases passing every deterministic check: 16/44
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl
+language_match                   42/44    96%    0    100%  100%   80%
+rupee_figures_traceable          30/32    94%   12     95%   83%  100%
+year_figures_traceable           24/24   100%   20    100%  100%  100%
+other_figures_traceable          18/21    86%   23     80%  100%   86%
+figures_match_their_label        28/29    97%   15     94%  100%  100%
+monthly_yearly_not_confused      16/17    94%   27     90%  100%  100%
+no_figures_for_unknowns            1/3    33%   41     33%     -     -
+links_from_policy_data             6/7    86%   37     75%  100%  100%
+required_facts_present           30/30   100%   14    100%  100%  100%
+under_150_words                  40/43    93%    1     92%   89%  100%
+no_markdown                      36/44    82%    0     84%   67%   90%
+no_leaked_reasoning              31/44    70%    0     72%   56%   80%
+no_internal_names                41/44    93%    0     88%  100%  100%
+unverified_data_flagged           4/12    33%   32     33%   33%   33%
+what_if_recalculated               4/4   100%   40    100%     -  100%
+tool_arguments_justified         17/17   100%   27    100%  100%  100%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl
+first_sentence_answers           35/44    80%    0     72%   89%   90%
+layperson_clear                  20/44    46%    0     44%   56%   40%
+careful_handling                 12/14    86%    0     90%  100%   67%
+flags_unverified                  4/12    33%    0     33%   33%   33%
+
+FAILURES
+- mh-worth-en [det] figures_match_their_label: {"mislabelled": [{"figure": "₹1.65 lakh", "announced_as": "lifetime savings", "is_actually": ["baseline.gross_cost", "policy typical cost x system_kw"], "sentence": "- You'll save about ₹1.65 lakh over the system's lifetime."}], "sentences_checked": 3}
+- mh-worth-en [det] monthly_yearly_not_confused: {"mismatched": [{"figure": "₹1,800", "is_actually": "a yearly figure", "true_source": ["baseline.bill_after", "policy.discoms.msedcl.tariff.fixed_charge x12"], "sentence": "- Your new monthly bill will be around ₹1,800, down from ₹20,436."}, {"figure": "₹20,436", "is_actually": "a yearly figure", "true_source": ["baseline.bill_before"], "sentence": "- Your new monthly bill will be around ₹1,800, down from ₹20,436."}]}
+- mh-worth-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 57}
+- mh-worth-en [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["4.5 years", "₹19,806", "₹1,800", "₹20,436"]}
+- mh-worth-en [graded] flags_unverified: "No mention of unverified electricity price data."
+- mh-worth-hi [det] no_markdown: {"found": ["asterisk"], "other_markdown_not_scored": ["link"]}
+- mh-worth-hi [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["₹20,436", "₹1,800", "₹19,806", "4.5 साल", "₹5,03,189"]}
+- mh-worth-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"वापसी का समय\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- mh-worth-hi [graded] flags_unverified: "No mention of unverified electricity price data."
+- mh-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"slab rates\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"MSEDCL\"]}"
+- mh-payback-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 35}
+- mh-payback-en [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["4.5 years", "₹19,806"]}
+- mh-payback-en [graded] layperson_clear: "{\"unexplained_terms\": [\"gross cost\", \"net cost\", \"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-payback-en [graded] flags_unverified: "No mention of unverified electricity price data."
+- mh-payback-hi [det] rupee_figures_traceable: {"untraced": [{"text": "₹2,160", "value": 2160.0, "kind": "money", "context": "ै। - सोलर लगाने के बाद आपका वार्षिक बिल लगभग ₹2,160 कम हो जाएगा। - सोलर सिस्"}]}
+- mh-payback-hi [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 49}
+- mh-payback-hi [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["4.5 साल", "₹19,806", "₹5.03 लाख"]}
+- mh-payback-hi [graded] flags_unverified: "no mention of unverified electricity price data"
+- mh-whatif-4kw-en [det] no_markdown: {"found": ["asterisk"]}
+- mh-whatif-4kw-en [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["6.2 years", "₹587,213"]}
+- mh-whatif-4kw-en [graded] first_sentence_answers: "Takes longer to pay back but doesn't give cost."
+- mh-whatif-4kw-en [graded] layperson_clear: "{\"unexplained_terms\": [\"Net Cost\", \"Payback\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"subsidy\", \"kW\"]}"
+- mh-whatif-4kw-en [graded] flags_unverified: "No mention of unverified electricity price data."
+- mh-savings-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"व्हीलिंग चार्ज\", \"अधिशेष क्रेडिट\", \"पेबैक अवधि\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"ईंधन समायोजन शुल्क\"]}"
+- mh-netmetering-hinglish [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 22}
+- mh-surplus-en [graded] first_sentence_answers: "No direct answer in first sentence."
+- mh-surplus-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-apply-en [det] under_150_words: {"words": 183, "limit": 150}
+- mh-apply-en [det] no_markdown: {"found": ["asterisk"], "other_markdown_not_scored": ["link"]}
+- mh-apply-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-battery-en [det] no_figures_for_unknowns: {"figures_given_for_something_with_no_data": [{"figure": "₹165,000", "sentence": "Adding a battery backup to your 2.75 kW solar system would cost about ₹165,000."}]}
+- mh-battery-en [graded] careful_handling: "Price given as 'about ₹165,000'"
+- dl-worth-hinglish [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["₹26,022", "5.7 saal"]}
+- dl-worth-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net cost\", \"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"kW\"]}"
+- dl-worth-hinglish [graded] flags_unverified: "No mention of unverified electricity price data."
+- dl-subsidy-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 34}
+- dl-subsidy-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net cost\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-whatif-3kw-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"kW\", \"subsidy\"]}"
+- dl-netmetering-hi [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 22}
+- dl-netmetering-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"DISCOM\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"नेट मीटरिंग\"]}"
+- dl-surplus-en [graded] first_sentence_answers: "States inability to confirm export tariff."
+- dl-surplus-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\", \"tariff\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-invest-en [det] rupee_figures_traceable: {"untraced": [{"text": "₹2.7 lakh", "value": 270000.0, "kind": "money", "context": "5.7 years, your ₹2 lakh could grow to about ₹2.7 lakh to ₹2.8 lakh. - Mutual F"}]}
+- dl-invest-en [det] other_figures_traceable: {"untraced": [{"text": "5%", "value": 5.0, "kind": "percent", "context": "h.  - Fixed Deposit: Typical return is about 5% to 7% per year. Over 5.7"}, {"text": "7%", "value": 7.0, "kind": "percent", "context": "Fixed Deposit: Typical return is about 5% to 7% per year. Over 5.7 years"}, {"text": "10%", "value": 10.0, "kind": "percent", "context": "l Funds: Potential for higher returns, often 10% to 15% or more over the"}, {"text": "15%", "value": 15.0, "kind": "percent", "context": ": Potential for higher returns, often 10% to 15% or more over the long te"}]}
+- dl-invest-en [det] no_figures_for_unknowns: {"figures_given_for_something_with_no_data": [{"figure": "5%", "sentence": "- Fixed Deposit: Typical return is about 5% to 7% per year."}, {"figure": "7%", "sentence": "- Fixed Deposit: Typical return is about 5% to 7% per year."}, {"figure": "10%", "sentence": "- Mutual Funds: Potential for higher returns, often 10% to 15% or more over the long term, but with higher risk."}, {"figure": "15%", "sentence": "- Mutual Funds: Potential for higher returns, often 10% to 15% or more over the long term, but with higher risk."}, {"figure": "₹2 lakh", "sentence": "Over 5.7 years, your ₹2 lakh could grow
+- dl-invest-en [det] under_150_words: {"words": 170, "limit": 150}
+- dl-invest-en [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["5.7 years", "₹6.28 lakh", "5.7 years", "5.7 years"]}
+- dl-invest-en [graded] first_sentence_answers: "Lead-in, answer arrives later."
+- dl-invest-en [graded] flags_unverified: "No mention of unverified electricity price data."
+- dl-apply-hi [det] under_150_words: {"words": 171, "limit": 150}
+- dl-apply-hi [det] no_markdown: {"found": ["asterisk"], "other_markdown_not_scored": ["link"]}
+- dl-detail-en [det] links_from_policy_data: {"not_in_policy_data": ["https://example.com/unverified-surplus-value"]}
+- dl-detail-en [det] no_markdown: {"found": ["asterisk"], "other_markdown_not_scored": ["link"]}
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"DISCOM\", \"gross cost\", \"net cost\", \"payback period\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- dl-shade-hinglish [graded] first_sentence_answers: "Partial answer, not a plain statement or figure."
+- ka-worth-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 24}
+- ka-subsidy-hi [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 38}
+- ka-payback-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 39}
+- ka-payback-en [graded] layperson_clear: "{\"unexplained_terms\": [\"gross cost\", \"net cost\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"payback period\"]}"
+- ka-whatif-3kw-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- ka-bill-after-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 44}
+- ka-loan-en [det] no_internal_names: {"mentions": ["tools"]}
+- ka-panels-en [graded] first_sentence_answers: "Lead-in, answer arrives later."
+- un-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"tariff\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"kW\"]}"
+- un-tariff-en [det] no_internal_names: {"mentions": ["'bescom'", "'delhi'", "'msedcl'", "policy_finance_analyst"]}
+- un-tariff-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- un-payback-hi [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 39}
+- rl-why-small-en [det] other_figures_traceable: {"untraced": [{"text": "35 square meters", "value": 35.0, "kind": "area", "context": "ns, and shading.   - The usable roof area is 35 square meters, which is decent but not"}, {"text": "4-meter", "value": 4.0, "kind": "metres", "context": "obstructions like a 3-meter-tall tree and a 4-meter-tall building that reduc"}]}
+- rl-whatif-5kw-hinglish [det] other_figures_traceable: {"untraced": [{"text": "4 kW", "value": 4.0, "kind": "kw", "context": "ystem nahi lagwa sakte. Aapke chhat par sirf 4 kW ka system hi suitable ha"}, {"text": "4 kW", "value": 4.0, "kind": "kw", "context": "tem ka performance kam ho sakta hai. Isliye, 4 kW ka system hi recommended"}]}
+- rl-whatif-5kw-hinglish [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 66}
+- rl-whatif-5kw-hinglish [graded] careful_handling: "Reply states 4 kW is suitable, not 2.3 kW limit."
+- rl-tree-en [graded] first_sentence_answers: "Does not directly answer if tree is a problem."
+- rl-worth-hinglish [det] language_match: {"expected": "hinglish", "label": "mixed", "devanagari_share": 0.0, "romanised_hindi_share": 0.079, "sentences_in_another_language": [{"sentence": "Enter your latest electricity bill for a figure based on what you actually pay.", "looks_like": "en"}]}
+- rl-worth-hinglish [det] no_markdown: {"found": ["asterisk"]}
+- rl-worth-hinglish [det] unverified_data_flagged: {"figures_resting_on_unverified_data": ["₹25,480", "2.7 years", "₹696,655"]}
+- rl-worth-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net cost\", \"payback period\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- rl-worth-hinglish [graded] flags_unverified: "No mention of unverified electricity price data."
+- qh-fair-en [graded] first_sentence_answers: "Quote is on higher end of cost range."
+- qh-fair-en [graded] layperson_clear: "{\"unexplained_terms\": [\"gross cost\", \"net cost\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- qh-fair-hi [det] no_markdown: {"found": ["asterisk"]}
+- qh-fair-hi [graded] first_sentence_answers: "Does not directly answer if the quotation is correct."
+- qh-fair-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"वापसी अवधि\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"₹\"]}"
+- qh-fair-hinglish [det] language_match: {"expected": "hinglish", "label": "en", "devanagari_share": 0.0, "romanised_hindi_share": 0.0, "sentences_in_another_language": [{"sentence": "The vendor's quote of ₹3.4 lakh is higher than the typical market range.", "looks_like": "en"}, {"sentence": "- The typical gross cost for a 3.3 kW system is between ₹1.55 lakh and ₹2.41 lakh.", "looks_like": "en"}, {"sentence": "- Your quote is ₹3.4 lakh, which is above this range.", "looks_like": "en"}, {"sentence": "- After the ₹78,000 subsidy, the net cost is ₹2.62 lakh.", "looks_like": "en"}, {"sentence": "- The system should pay for itself in abou
+- qh-fair-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"gross cost\", \"net cost\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"payback period\"]}"
+- qh-payback-en [det] no_leaked_reasoning: {"tags": ["</thinking>", "<thinking>"], "leaked_words": 32}
+- qh-payback-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\", \"net cost\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- qh-negotiate-en [graded] layperson_clear: "{\"unexplained_terms\": [\"gross cost\", \"net cost\", \"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- qh-vendor-en [det] no_markdown: {"found": ["asterisk"], "other_markdown_not_scored": ["backtick"]}
+- qh-vendor-en [det] no_internal_names: {"mentions": ["estimate_finances", "tool"]}
+- qh-vendor-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\", \"tariff\", \"inverter\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"

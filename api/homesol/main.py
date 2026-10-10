@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 import os
 from pathlib import Path
@@ -9,7 +11,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from . import detect, finance, policy  # noqa: E402
+from . import bill, detect, feedback, finance, policy, speech, surveys  # noqa: E402
 
 app = FastAPI(title="homesol")
 app.add_middleware(
@@ -27,6 +29,7 @@ class FinanceRequest(BaseModel):
     discom_id: str | None = None
     monthly_bill: float | None = Field(default=None, gt=0)
     quoted_cost: float | None = Field(default=None, gt=0)
+    sanctioned_load_kw: float | None = Field(default=None, gt=0, le=100)
 
 
 class ChatTurn(BaseModel):
@@ -39,6 +42,16 @@ class AdviseRequest(BaseModel):
     #: The household's survey as shown on the dashboard.
     survey: dict
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+
+
+class TranscribeRequest(BaseModel):
+    #: Base64 of 16 kHz, 16-bit, mono PCM audio.
+    audio: str = Field(min_length=100)
+    language: str | None = None
+
+
+class SaveSurveyRequest(BaseModel):
+    survey: dict
 
 
 @app.get("/health")
@@ -68,28 +81,82 @@ def post_finance(req: FinanceRequest) -> dict:
         raise HTTPException(422, str(err)) from err
 
 
+@app.post("/transcribe")
+async def post_transcribe(req: TranscribeRequest) -> dict:
+    try:
+        pcm = base64.b64decode(req.audio, validate=True)
+    except binascii.Error as err:
+        raise HTTPException(422, "Audio is not valid base64.") from err
+    try:
+        return await speech.transcribe(pcm, req.language)
+    except speech.SpeechError as err:
+        raise HTTPException(422, str(err)) from err
+    except Exception as err:  # the Transcribe SDK raises its own unrelated error types
+        raise HTTPException(502, f"Speech recognition is unavailable: {err}") from err
+
+
+@app.post("/surveys")
+def post_survey(req: SaveSurveyRequest) -> dict:
+    try:
+        return {"code": surveys.save(req.survey)}
+    except surveys.SurveyTooLarge as err:
+        raise HTTPException(413, "This survey is too large to save.") from err
+
+
+@app.get("/surveys/{code}")
+def get_survey(code: str) -> dict:
+    survey = surveys.load(code)
+    if survey is None:
+        raise HTTPException(404, "No saved survey with that code. It may have expired.")
+    return {"survey": survey}
+
+
+@app.post("/bill")
+def post_bill(req: bill.BillRequest) -> dict:
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    try:
+        return bill.read_bill(req).model_dump()
+    except bill.BillError as err:
+        raise HTTPException(422, str(err)) from err
+    except (ClientError, BotoCoreError) as err:
+        raise HTTPException(502, f"The bill reader is unavailable: {err}") from err
+
+
 @app.post("/detect")
 def post_detect(req: detect.DetectRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 
     try:
-        return {"obstructions": [o.model_dump() for o in detect.detect(req)]}
+        found = [o.model_dump() for o in detect.detect(req)]
     except detect.DetectionError as err:
         raise HTTPException(502, str(err)) from err
     except (ClientError, BotoCoreError) as err:
         raise HTTPException(502, f"The vision model is unavailable: {err}") from err
+    detection_id = feedback.record_run(detect.MODEL_ID, req.model_dump(exclude={"image"}), found)
+    return {"detection_id": detection_id, "obstructions": found}
+
+
+@app.post("/feedback")
+def post_feedback(verdict: feedback.Verdict) -> dict:
+    feedback.record_verdict(verdict)
+    return {"ok": True}
+
+
+@app.get("/feedback/summary")
+def get_feedback_summary() -> dict:
+    return feedback.summary()
 
 
 @app.post("/advise")
 def post_advise(req: AdviseRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 
-    from .agents import baseline_finances, build_advisor
+    from .agents import build_advisor, clean_answer, fact_sheet
 
     transcript = "".join(f"{'Household' if t.role == 'user' else 'You'}: {t.text}\n" for t in req.history)
     prompt = (
-        f"The household's survey, as JSON:\n{json.dumps(req.survey)}\n\n"
-        f"Finances already calculated for the recommended system:\n{json.dumps(baseline_finances(req.survey))}\n\n"
+        f"This household's facts:\n{fact_sheet(req.survey)}\n\n"
         + (f"The conversation so far:\n{transcript}\n" if transcript else "")
         + f"The household asks: {req.question}"
     )
@@ -97,4 +164,4 @@ def post_advise(req: AdviseRequest) -> dict:
         result = build_advisor(req.survey)(prompt)
     except (ClientError, BotoCoreError) as err:
         raise HTTPException(502, f"The advisor's model is unavailable: {err}") from err
-    return {"answer": str(result).strip()}
+    return {"answer": clean_answer(str(result))}

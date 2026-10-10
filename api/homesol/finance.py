@@ -32,15 +32,33 @@ class Finance:
         return asdict(self)
 
 
-def slab_bill(units: float, tariff: dict) -> float:
-    """Monthly bill in rupees for `units` under a slab tariff, including the fixed charge."""
-    total, lower = float(tariff["fixed_charge"]), 0.0
+#: Sanctioned load assumed when the household has not given theirs.
+DEFAULT_LOAD_KW = 3.0
+
+
+def fixed_charge(tariff: dict, load_kw: float) -> float:
+    """Monthly fixed charge in rupees for a home with this sanctioned load."""
+    fixed = tariff["fixed_charge"]
+    if fixed["type"] == "flat":
+        return float(fixed["amount"])
+    band = next(b for b in fixed["bands"] if b["up_to_kw"] is None or load_kw <= b["up_to_kw"])
+    return band["rate"] * load_kw if fixed["type"] == "per_kw" else float(band["amount"])
+
+
+def slab_bill(units: float, tariff: dict, load_kw: float = DEFAULT_LOAD_KW) -> float:
+    """
+    Monthly bill in rupees for `units` under a slab tariff.
+
+    Each slab's units are charged at that slab's rate. The fixed charge is added,
+    then any percentage surcharge is applied to the total.
+    """
+    total, lower = fixed_charge(tariff, load_kw), 0.0
     for slab in tariff["slabs"]:
         upper = slab["up_to"] if slab["up_to"] is not None else float("inf")
         if units > lower:
             total += (min(units, upper) - lower) * slab["rate"]
         lower = upper
-    return total
+    return total * (1 + tariff.get("surcharge_percent", 0) / 100)
 
 
 def estimate(
@@ -51,13 +69,17 @@ def estimate(
     discom_id: str | None = None,
     monthly_bill: float | None = None,
     quoted_cost: float | None = None,
+    sanctioned_load_kw: float | None = None,
 ) -> Finance:
     """
     Cost, subsidy, bill savings and payback for one system.
 
-    Savings follow net metering: each month's solar units offset that month's
-    usage, any excess is carried forward as credit within the year, and what is
-    left at year end is paid at the DISCOM's surplus rate when that rate is known.
+    Savings follow the distributor's net-metering rule. Each month's solar units
+    offset that month's usage. Where settlement is annual, excess units carry
+    forward as credit and whatever is left at year end is paid at the surplus
+    rate. Where settlement is monthly, each month's excess is paid at the
+    surplus rate straight away and nothing carries forward. Without a known
+    distributor, annual carry-forward is assumed and surplus is worth nothing.
 
     Bills are priced from the household's own bill when `monthly_bill` is given
     (its average rate per unit), otherwise from the DISCOM's slab table.
@@ -80,31 +102,38 @@ def estimate(
             "units first, so real savings are usually a little higher."
         )
     elif discom:
-        price = lambda units: slab_bill(units, discom["tariff"])  # noqa: E731
+        load_kw = sanctioned_load_kw or DEFAULT_LOAD_KW
+        price = lambda units: slab_bill(units, discom["tariff"], load_kw)  # noqa: E731
         rate_basis = "discom_slabs"
-        if not discom["tariff"]["verified"]:
-            notes.append(
-                f"Uses indicative {discom['name']} slab rates that are not yet checked against the "
-                "regulator's order. Enter your bill amount for a figure based on what you actually pay."
-            )
+        notes.append(f"Uses {discom['name']} rates: {discom['tariff']['includes']} ({discom['tariff']['order']}.)")
         notes.append(f"Leaves out: {discom['tariff']['excludes']}")
     else:
         raise ValueError("Give either a monthly bill amount or a supported DISCOM.")
 
+    surplus_rate = policy.surplus_rate(discom, system_kw) if discom else None
+    monthly_settlement = bool(discom) and discom["net_metering"]["settlement"] == "monthly"
+
     bill_before = price(monthly_usage) * 12
-    bill_after, credit_units = 0.0, 0.0
+    bill_after, credit_units, surplus_units = 0.0, 0.0, 0.0
     for generated in monthly_generation:
         net = monthly_usage - generated - credit_units
-        credit_units = max(0.0, -net)
+        excess = max(0.0, -net)
+        if monthly_settlement:
+            surplus_units += excess
+            credit_units = 0.0
+        else:
+            credit_units = excess
         bill_after += price(max(0.0, net))
+    surplus_units += credit_units
 
-    surplus_rate = discom["net_metering"]["surplus_rate"] if discom else None
-    surplus_credit = credit_units * surplus_rate if surplus_rate else 0.0
-    if credit_units >= 1 and not surplus_rate:
+    surplus_credit = surplus_units * surplus_rate if surplus_rate else 0.0
+    if surplus_units >= 1 and not surplus_rate:
         notes.append(
-            f"About {round(credit_units)} surplus units a year are counted as worth nothing because "
-            "the rate your DISCOM pays for them is not confirmed."
+            f"About {round(surplus_units)} surplus units a year are counted as worth nothing because "
+            "the rate your distributor pays for them is not confirmed."
         )
+    if discom and not discom["net_metering"]["verified"]:
+        notes.append(f"Net-metering terms need confirming: {discom['net_metering'].get('note', '')}".strip())
 
     first_year = bill_before - bill_after + surplus_credit
     net_cost = gross - subsidy
@@ -126,7 +155,7 @@ def estimate(
         bill_before=round(bill_before),
         bill_after=round(bill_after),
         first_year_savings=round(first_year),
-        surplus_units=round(credit_units),
+        surplus_units=round(surplus_units),
         surplus_credit=round(surplus_credit),
         payback_years=round(payback, 1) if payback is not None else None,
         lifetime_savings=round(lifetime - net_cost),

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { loadSurvey } from "@/lib/api";
 import { centroid } from "@/lib/geo/local";
 import { sunBlockedByHorizon } from "@/lib/solar/horizon";
 import { analyseShading, shadowOutlines, type ShadingObstruction } from "@/lib/solar/shading";
@@ -21,10 +22,21 @@ export default function Planner() {
   const scanOpen = useStore((s) => s.scanOpen);
 
   useEffect(() => {
-    // Restore a saved survey and bring its roof back into view.
-    void Promise.resolve(useStore.persist.rehydrate()).then(() => {
+    // Open a shared survey from its link, or else restore this device's last one.
+    const code = new URLSearchParams(window.location.search).get("s");
+    const showRoof = () => {
       const saved = useStore.getState().roof;
       if (saved) useStore.getState().requestFlyTo(centroid(saved));
+    };
+    void Promise.resolve(useStore.persist.rehydrate()).then(async () => {
+      if (code) {
+        try {
+          useStore.setState((await loadSurvey(code)).survey);
+        } catch {
+          // Fall back to whatever this device already has.
+        }
+      }
+      showRoof();
     });
   }, []);
 

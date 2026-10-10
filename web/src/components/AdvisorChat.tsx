@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { askAdvisor, type ChatTurn } from "@/lib/api";
+import { useRef, useState } from "react";
+import { askAdvisor, transcribe, type ChatTurn, type SpeechLanguage } from "@/lib/api";
+import { startRecording, type Recording } from "@/lib/audio";
 import type { ShadingResult } from "@/lib/solar/shading";
 import { FLOOR_HEIGHT_M, useStore } from "@/lib/store";
 import { useSizing } from "@/lib/useSizing";
-import { field, primary } from "./ui";
+import { field, primary, secondary } from "./ui";
 
 const SUGGESTIONS = ["Is solar worth it for my home?", "How do I apply for the subsidy?", "मेरी छत पर पैनल कहाँ लगाने चाहिए?"];
 
@@ -16,6 +17,34 @@ export default function AdvisorChat({ analysis }: { analysis: ShadingResult }) {
   const [draft, setDraft] = useState("");
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<SpeechLanguage>("en-IN");
+  const [mic, setMic] = useState<"idle" | "recording" | "transcribing">("idle");
+  const recording = useRef<Recording | null>(null);
+
+  const toggleMic = async () => {
+    setError(null);
+    if (mic === "idle") {
+      try {
+        recording.current = await startRecording();
+        setMic("recording");
+      } catch {
+        setError("Microphone access is needed to speak your question.");
+      }
+      return;
+    }
+    if (mic !== "recording" || !recording.current) return;
+    setMic("transcribing");
+    try {
+      const { text } = await transcribe(await recording.current.stop(), language);
+      if (text) setDraft((d) => (d ? `${d} ${text}` : text));
+      else setError("Couldn't hear any words. Try again a little closer to the microphone.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speech recognition failed.");
+    } finally {
+      recording.current = null;
+      setMic("idle");
+    }
+  };
 
   const ask = async (question: string) => {
     if (!question.trim() || waiting) return;
@@ -110,6 +139,25 @@ export default function AdvisorChat({ analysis }: { analysis: ShadingResult }) {
           Ask
         </button>
       </form>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`${secondary} ${mic === "recording" ? "border-rose-400 text-rose-200" : ""}`}
+          disabled={mic === "transcribing"}
+          onClick={toggleMic}
+        >
+          {mic === "idle" ? "Speak your question" : mic === "recording" ? "Stop and transcribe" : "Transcribing…"}
+        </button>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as SpeechLanguage)}
+          aria-label="Spoken language"
+          className={`${field} py-2 text-sm`}
+        >
+          <option value="en-IN">English</option>
+          <option value="hi-IN">हिंदी</option>
+        </select>
+      </div>
     </div>
   );
 }
