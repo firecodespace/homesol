@@ -1,0 +1,42 @@
+advisor us.anthropic.claude-opus-4-6-v1 (effort low)  specialists us.anthropic.claude-sonnet-4-6 (effort low)  grader us.anthropic.claude-sonnet-4-6
+cases 81  answered 81  errored 0
+latency  median 7.41s  p90 13.54s  max 18.75s  mean 8.64s  (median answered from the facts 6.59s, with a specialist 12.84s)
+cases calling each tool: site_analyst 9, policy_finance_analyst 14, lookup_policy 3, estimate_finances 8; none at all 58
+cases passing every deterministic check: 80/81
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl    de
+language_match                   81/81   100%    0    100%  100%  100%  100%
+currency_matches_survey          57/57   100%   24    100%  100%  100%     -
+money_figures_traceable          57/57   100%   24    100%  100%  100%     -
+year_figures_traceable           35/35   100%   46    100%  100%  100%     -
+other_figures_traceable          58/58   100%   23    100%  100%  100%  100%
+figures_match_their_label        44/44   100%   37    100%  100%  100%     -
+monthly_yearly_not_confused      29/29   100%   52    100%  100%  100%     -
+no_figures_for_unknowns            3/3   100%   78    100%     -     -     -
+nothing_recalled_by_name           8/8   100%   73    100%     -     -  100%
+links_from_policy_data           17/17   100%   64    100%  100%  100%     -
+required_facts_present           57/57   100%   24    100%  100%  100%  100%
+under_150_words                  79/80    99%    1     98%  100%  100%  100%
+no_markdown                      81/81   100%    0    100%  100%  100%  100%
+no_leaked_reasoning              81/81   100%    0    100%  100%  100%  100%
+no_internal_names                81/81   100%    0    100%  100%  100%  100%
+unverified_data_flagged            5/5   100%   76    100%     -  100%     -
+what_if_recalculated               8/8   100%   73    100%     -  100%     -
+tool_arguments_justified           8/8   100%   73    100%     -  100%     -
+ALL OF THE ABOVE               789/790  99.9%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl    de
+first_sentence_answers           80/81    99%    0     98%  100%  100%  100%
+layperson_clear                  76/81    94%    0     94%  100%   85%  100%
+careful_handling                 37/37   100%    0    100%  100%  100%  100%
+flags_unverified                   5/5   100%    0    100%     -  100%     -
+ALL OF THE ABOVE               198/204  97.1%
+
+FAILURES
+- mh-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-surplus-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-detail-en [graded] first_sentence_answers: "The first sentence is a lead-in ('Here's the full breakdown...') with the actual answer only arriving later."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- ka-whatif-3kw-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- us-quote-fair-en [graded] layperson_clear: "{\"unexplained_terms\": [\"inverter\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- au-shade-en [det] under_150_words: {"words": 151, "limit": 150}

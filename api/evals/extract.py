@@ -21,7 +21,8 @@ import re
 import unicodedata
 from dataclasses import asdict, dataclass
 
-_DEV = "ऀ-ॿ"
+#: Devanagari letters, signs and digits, but not its full stops (। and ॥): "₹10.38 लाख।" ends at the word.
+_DEV = "ऀ-ॣ०-ॿ"
 #: Word boundaries that also work inside Devanagari, where vowel signs are not `\w`.
 _L = rf"(?<![A-Za-z0-9{_DEV}])"
 _R = rf"(?![A-Za-z0-9{_DEV}])"
@@ -41,6 +42,11 @@ def normalise(text: str) -> str:
     text = text.translate(_DEV_DIGITS)
     text = re.sub(r"[   ​‌‍]", " ", text)
     return strip_urls(text)
+
+
+def decimal_commas(text: str) -> str:
+    """German or Spanish figures ("4,4 kW", "4.220 kWh") in the form the extractor reads ("4.4 kW", "4,220 kWh")."""
+    return re.sub(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+,\d+", lambda m: m.group(0).translate(str.maketrans(".,", ",.")), text)
 
 
 def _alt(words: list[str]) -> str:
@@ -64,7 +70,8 @@ _MONEY_WORDS = {
     "GBP": ["gbp", "pounds", "pound"],
 }
 #: Hundredths of the main unit: "16 cents a unit", "60 paise".
-_FRACTION_WORDS = {"DOLLAR": ["cents", "cent"], "INR": ["paise", "paisa", "पैसे", "पैसा"]}
+#: Not "paisa" or "पैसा": in Hindi that is money in general ("paisa wasool"), not the coin.
+_FRACTION_WORDS = {"DOLLAR": ["cents", "cent"], "INR": ["paise", "पैसे"]}
 #: Currency signs and codes written before the number. Longest first, so "A$" is not read as "$".
 _MONEY_SIGNS = {
     "₹": "INR", "rs.": "INR", "rs": "INR", "inr": "INR", "रु.": "INR", "रु": "INR", "रुपये": "INR", "रुपए": "INR",
@@ -95,13 +102,14 @@ _UNITS = {
 }
 _WORD_CURRENCY = {normalise(w).lower(): code for code, ws in (*_MONEY_WORDS.items(), *_FRACTION_WORDS.items()) for w in ws}
 _FRACTIONS = {normalise(w).lower() for ws in _FRACTION_WORDS.values() for w in ws}
+#: A unit sits on the same line as its number: "₹24,153" ending one bullet is not joined to the word starting the next.
 _MULT_RE = re.compile(
-    r"\s*-?\s*(?:" + "|".join(f"(?P<m{v}>{_alt(ws)})" for v, ws in _MULTIPLIERS.items()) + ")" + _R, re.I
+    r"[ \t]*-?[ \t]*(?:" + "|".join(f"(?P<m{v}>{_alt(ws)})" for v, ws in _MULTIPLIERS.items()) + ")" + _R, re.I
 )
 #: "₹78k", "₹1.65L": only when glued to the digits.
 _MULT_ATTACHED_RE = re.compile(r"(?:(?P<k>k)|(?P<l>L))" + _R)
 _UNIT_RE = re.compile(
-    r"\s*-?\s*(?:"
+    r"[ \t]*-?[ \t]*(?:"
     + "|".join(f"(?P<{kind}>{_alt(ws)})" + ("" if kind == "percent" else _R) for kind, ws in _UNITS.items())
     + ")",
     re.I,

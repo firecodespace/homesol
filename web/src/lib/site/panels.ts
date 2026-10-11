@@ -12,8 +12,11 @@ export const PANEL_WATTS = 550;
 const EDGE_SETBACK_M = 0.5;
 /** Gap between neighbouring panels in a row. */
 const PANEL_GAP_M = 0.02;
-/** A panel position is worth using when it gets at least this share of open-sky sun. */
-export const GOOD_ACCESS = 0.85;
+/**
+ * A panel position is worth using when it gets at least this share of the best sun nearby. The same
+ * line Google's Project Sunroof draws for a viable roof. Positions above it are still used sunniest first.
+ */
+export const GOOD_ACCESS = 0.75;
 
 export interface Panel {
   /** Corners of the panel's footprint on the map. */

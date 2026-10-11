@@ -109,8 +109,8 @@ def estimate(
         gross_range = None
         subsidy = 0
         notes.append(
-            "homesol has subsidy and price data for India only. Local incentives are not included, "
-            "and the price is taken from your vendor's quote."
+            "homesol has subsidy and price data for India only. Local incentives are not included, and "
+            + ("the price is your vendor's quote." if quoted_cost else "there is no price until you enter a vendor's quote.")
         )
 
     if monthly_bill and monthly_usage > 0:

@@ -1,0 +1,7 @@
+{
+ "advisor_model_id": "us.anthropic.claude-opus-4-6-v1",
+ "advisor_effort": "low",
+ "specialist_model_id": "us.anthropic.claude-sonnet-4-6",
+ "specialist_effort": "low",
+ "grader_model_id": "us.anthropic.claude-opus-4-6-v1"
+}

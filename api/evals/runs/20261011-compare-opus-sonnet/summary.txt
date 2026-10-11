@@ -1,0 +1,44 @@
+advisor us.anthropic.claude-opus-4-6-v1 (effort low)  specialists us.anthropic.claude-sonnet-4-6 (effort low)  grader us.anthropic.claude-sonnet-4-6
+cases 26  answered 26  errored 0
+latency  median 10.56s  p90 15.51s  max 16.84s  mean 10.29s  (median answered from the facts 6.82s, with a specialist 13.65s)
+cases calling each tool: site_analyst 5, policy_finance_analyst 7, lookup_policy 1, estimate_finances 5; none at all 14
+cases passing every deterministic check: 24/26
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl    de
+language_match                   26/26   100%    0    100%  100%  100%  100%
+currency_matches_survey          19/19   100%    7    100%  100%  100%     -
+money_figures_traceable          18/19    95%    7    100%   50%  100%     -
+year_figures_traceable           12/12   100%   14    100%  100%  100%     -
+other_figures_traceable          17/18    94%    8     92%  100%  100%  100%
+figures_match_their_label        15/15   100%   11    100%  100%  100%     -
+monthly_yearly_not_confused      11/11   100%   15    100%  100%  100%     -
+no_figures_for_unknowns            2/2   100%   24    100%     -     -     -
+nothing_recalled_by_name           2/2   100%   24    100%     -     -  100%
+links_from_policy_data             5/5   100%   21    100%     -  100%     -
+required_facts_present           19/19   100%    7    100%  100%  100%  100%
+under_150_words                  25/25   100%    1    100%  100%  100%  100%
+no_markdown                      26/26   100%    0    100%  100%  100%  100%
+no_leaked_reasoning              26/26   100%    0    100%  100%  100%  100%
+no_internal_names                26/26   100%    0    100%  100%  100%  100%
+unverified_data_flagged            3/3   100%   23    100%     -     -     -
+what_if_recalculated               5/5   100%   21    100%     -  100%     -
+tool_arguments_justified           5/5   100%   21    100%     -  100%     -
+ALL OF THE ABOVE               262/264  99.2%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl    de
+first_sentence_answers           24/26    92%    0     94%  100%   83%  100%
+layperson_clear                  21/26    81%    0     88%  100%   50%  100%
+careful_handling                 13/13   100%    0    100%  100%  100%  100%
+flags_unverified                   3/3   100%    0    100%     -     -     -
+ALL OF THE ABOVE                 61/68  89.7%
+
+FAILURES
+- mh-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-payback-hi [det] money_figures_traceable: {"untraced": [{"text": "₹10.38", "value": 10.38, "kind": "money", "context": "ल में कुल बचत (सिस्टम की लागत निकालकर): करीब ₹10.38 लakh। - आपका बिजली बिल ल"}]}
+- dl-detail-en [graded] first_sentence_answers: "The first sentence is a lead-in ('Here's the full breakdown...') with the actual answer only arriving later."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"tariff slabs\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- dl-shade-hinglish [graded] first_sentence_answers: "First sentence gives location and dimensions of neighbor's building but does not state the shade percentage or answer 'kitna shade aata hai' — that figure arrives later ('33%')."
+- un-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- us-incentive-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- au-facing-en [det] other_figures_traceable: {"untraced": [{"text": "35°", "value": 35.0, "kind": "degrees", "context": "le tilt. In South Australia (around latitude 35°), a steeper angle (close"}, {"text": "30", "value": 30.0, "kind": "degrees", "context": "nd latitude 35°), a steeper angle (closer to 30–35°) would capture a bit"}, {"text": "35°", "value": 35.0, "kind": "degrees", "context": "latitude 35°), a steeper angle (closer to 30–35°) would capture a bit mor"}]}
+- 2t-switch-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"

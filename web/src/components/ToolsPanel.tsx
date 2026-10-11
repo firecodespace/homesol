@@ -103,7 +103,7 @@ function PropertyTool() {
       )}
       <button className="md-outlined w-full" onClick={clearRoof}>
         <Icon name="edit_location_alt" className="text-[18px]" />
-        Choose a different property
+        Change property
       </button>
     </>
   );
@@ -300,7 +300,7 @@ export default function ToolsPanel({ analysis, money }: { analysis: Analysis | n
   const land = analysis?.model.surface.kind.includes("ground");
 
   return (
-    <aside className="w-full shrink-0 overflow-x-hidden bg-surface-container-low lg:h-full lg:w-[360px] lg:overflow-y-auto">
+    <aside className="w-full shrink-0 overflow-x-hidden bg-surface-container-low lg:h-full lg:w-[300px] lg:overflow-y-auto xl:w-[360px]">
       <div className="space-y-3 p-3">
         {hydrated && (
           <Tool

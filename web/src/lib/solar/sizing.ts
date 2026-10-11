@@ -1,4 +1,4 @@
-const DAYS_IN_MONTH = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+export const DAYS_IN_MONTH = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 /** Share of sunlight on the panels that reaches the meter after heat, dust, wiring and inverter losses. */
 export const PERFORMANCE_RATIO = 0.75;
 /** Rated output of one typical residential panel today. */
@@ -14,6 +14,10 @@ export interface SizingInput {
    * uses as many of these as it needs, starting with the sunniest.
    */
   panelAccess: number[];
+  /** For each month, sunlight on the panels as a multiple of sunlight on a flat surface. Defaults to 1. */
+  gain?: number[];
+  /** Units at the meter per unit of sunlight on a 1 kW panel. Defaults to the standard performance ratio. */
+  factor?: number;
 }
 
 export interface Sizing {
@@ -30,13 +34,13 @@ export interface Sizing {
 }
 
 /** Units one panel in full sun generates in each month. 1 kW under 1 kWh/m²/day yields 1 kWh/day before losses. */
-function monthlyYieldPerPanel(irradiance: number[]): number[] {
-  return irradiance.map((sun, i) => sun * DAYS_IN_MONTH[i] * PERFORMANCE_RATIO * PANEL_KW);
+function monthlyYieldPerPanel(irradiance: number[], gain: number[] | undefined, factor: number): number[] {
+  return irradiance.map((sun, i) => sun * DAYS_IN_MONTH[i] * (gain?.[i] ?? 1) * factor * PANEL_KW);
 }
 
 /** The fewest panels, sunniest positions first, that cover the year's usage; or every good position. */
-export function sizeSystem({ monthlyIrradiance, monthlyUsageKwh, panelAccess }: SizingInput): Sizing {
-  const perPanel = monthlyYieldPerPanel(monthlyIrradiance);
+export function sizeSystem({ monthlyIrradiance, monthlyUsageKwh, panelAccess, gain, factor = PERFORMANCE_RATIO }: SizingInput): Sizing {
+  const perPanel = monthlyYieldPerPanel(monthlyIrradiance, gain, factor);
   const annualPerPanel = perPanel.reduce((a, b) => a + b, 0);
   const annualUsage = monthlyUsageKwh * 12;
 

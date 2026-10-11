@@ -119,9 +119,14 @@ def test_advisor_finances_come_from_the_survey_and_scale_with_size():
 
 
 SURVEY = {
-    "roof": {"area_m2": 80, "usable_area_m2": 70, "yearly_sun_reaching_roof": 0.95, "max_system_kw": 7, "height_m": 6, "skyline_scanned": True},
-    "obstructions": [{"kind": "tank", "height_m": 2, "height_from": "roof", "height_source": "entered by user"}],
-    "household": {"monthly_units": 300, "discom_id": "msedcl", "monthly_bill_rupees": None, "vendor_quote_rupees": 340000},
+    "location": {"country_code": "IN", "country": "India", "state": "Maharashtra", "currency": "INR"},
+    "surface": {"kind": "roof", "area_m2": 80, "height_m": 6, "floors": 2, "tilt_deg": 1, "faces": "north", "measured": True, "imagery_date": "2025-01-06"},
+    "sun": {"share_of_full_sun": 0.95, "full_sun_hours": {"winter": "09:40 to 16:10", "equinox": "08:30 to 17:00", "summer": "08:10 to 17:30"}},
+    "obstructions": [
+        {"name": "Water tank or small structure", "on_surface": True, "height_above_m": 2, "distance_m": 0, "direction": "north", "share_of_shade": 0.6}
+    ],
+    "panels": {"fit": 12, "recommended": 5, "panel_watts": 550, "tilt_deg": 18, "facing": "south", "mounting": "tilted rows"},
+    "household": {"monthly_units": 300, "discom_id": "msedcl", "monthly_bill": None, "vendor_quote": 340000},
     "recommended_system": {"system_kw": 2.75, "panels": 5, "monthly_generation_units": [300] * 12, "share_of_usage_covered": 1.0, "limited_by": "usage"},
 }
 
@@ -132,8 +137,10 @@ def test_fact_sheet_labels_periods_and_flags_an_overpriced_quote():
     facts = fact_sheet(SURVEY)
     assert "PER YEAR" in facts and "a month)" in facts
     assert "69% ABOVE the top of the usual range" in facts
-    assert "has been done." in facts
-    assert "Rs 3,40,000" not in facts and "Rs 340,000" in facts
+    assert "a flat roof" in facts and "MEASURED from Google's 3D aerial survey" in facts
+    assert "About 60% of the shade comes from: Water tank or small structure" in facts
+    # Rupees are written the Indian way, with the lakh form ready to quote.
+    assert "₹3,40,000 (₹3.40 lakh)" in facts and "340,000" not in facts
 
 
 def test_what_if_size_does_not_reuse_the_quote_for_the_recommended_size():

@@ -3,6 +3,7 @@ import { fetchFinance, fetchPolicy, placeAt, type Finance, type Place, type Poli
 import { centroid } from "./geo/local";
 import type { Analysis } from "./site/analysis";
 import type { Sizing } from "./solar/sizing";
+import type { YieldBasis } from "./solar/yield";
 import { useStore } from "./store";
 import { useSizing } from "./useSizing";
 
@@ -10,6 +11,8 @@ export const OTHER_DISCOM = "other";
 
 export interface Money {
   sizing: Sizing | null;
+  /** How sunlight was turned into units for this layout. */
+  basis: YieldBasis | null;
   policy: PolicyOverview | null;
   /** Costs and savings for the recommended system, once everything needed is known. */
   finance: Finance | null;
@@ -26,7 +29,7 @@ export interface Money {
 /** The household's recommended system and what it costs and saves. */
 export function useMoney(analysis: Analysis | null): Money {
   const { roof, place, monthlyUnits, monthlyBill, quotedCost, discomId, sanctionedLoadKw, setMoney } = useStore();
-  const { sizing } = useSizing(analysis);
+  const { sizing, basis } = useSizing(analysis);
   const [policy, setPolicy] = useState<PolicyOverview | null>(null);
   const [result, setResult] = useState<{ finance: Finance } | { error: string } | null>(null);
 
@@ -86,6 +89,7 @@ export function useMoney(analysis: Analysis | null): Money {
 
   return {
     sizing,
+    basis,
     policy,
     finance: ready && result && "finance" in result ? result.finance : null,
     error: result && "error" in result ? result.error : null,

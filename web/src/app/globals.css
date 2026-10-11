@@ -138,7 +138,9 @@ body {
 }
 
 /* Explanations that appear when pointing at something on the map. */
+/* The tip never takes a tap itself, so tapping through it reaches whatever is on the map beneath. */
 .map-tip .maplibregl-popup-content {
+  pointer-events: none;
   background: var(--color-inverse-surface);
   color: var(--color-inverse-on-surface);
   border-radius: var(--radius-sm);

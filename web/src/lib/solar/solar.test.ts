@@ -3,7 +3,8 @@ import { localFrame, type LngLat } from "../geo/local";
 import { cameraDirection, emptyHorizon, horizonElevation, withSample } from "./horizon";
 import { analyseShading, shadowOutlines } from "./shading";
 import { estimateHeightFromShadow } from "./shadowHeight";
-import { PANEL_KW, sizeSystem } from "./sizing";
+import { DAYS_IN_MONTH, PANEL_KW, PERFORMANCE_RATIO, sizeSystem } from "./sizing";
+import { beamRatio, GOOGLE_DC_TO_AC, tiltGain, yieldBasis } from "./yield";
 import { istDate, sunAt } from "./sun";
 
 const DELHI: LngLat = [77.209, 28.6139];
@@ -209,5 +210,87 @@ describe("sizeSystem", () => {
     const full = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 100_000, panelAccess: [1, 1] });
     const mixed = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 100_000, panelAccess: [1, 0.9] });
     expect(mixed.annualKwh / full.annualKwh).toBeCloseTo(0.95, 5);
+  });
+});
+
+describe("tilted panels", () => {
+  // NASA POWER climatology, kWh/m²/day.
+  const mumbai = [4.88, 5.74, 6.59, 7.08, 7.09, 5.0, 3.79, 4.04, 4.78, 5.21, 4.84, 4.53];
+  const london = [0.75, 1.37, 2.4, 3.72, 4.82, 5.19, 5.06, 4.31, 2.99, 1.76, 0.92, 0.6];
+  const year = (ghi: number[], gain: number[]) =>
+    ghi.reduce((s, v, i) => s + v * DAYS_IN_MONTH[i] * gain[i], 0) / ghi.reduce((s, v, i) => s + v * DAYS_IN_MONTH[i], 0);
+
+  it("matches the textbook beam ratio for a steep south-facing panel in a northern winter", () => {
+    // Duffie and Beckman's worked example: latitude 43°, tilt 60°, mid-January.
+    expect(beamRatio(43, 60, -20.9)).toBeCloseTo(2.79, 1);
+  });
+
+  it("mirrors across the equator", () => {
+    expect(beamRatio(-43, 60, 20.9)).toBeCloseTo(beamRatio(43, 60, -20.9), 6);
+    const north = tiltGain(35, 25, 0, london);
+    const south = tiltGain(-35, 25, 0, [...london.slice(6), ...london.slice(0, 6)]);
+    expect(south[0]).toBeCloseTo(north[6], 1);
+  });
+
+  it("gains nothing lying flat", () => {
+    expect(tiltGain(28, 0, 0, mumbai)).toEqual(Array(12).fill(1));
+  });
+
+  it("gains in winter and loses a little in summer when tilted at the latitude", () => {
+    const gain = tiltGain(19, 19, 0, mumbai);
+    expect(gain[11]).toBeGreaterThan(1.15);
+    expect(gain[5]).toBeLessThan(1);
+    expect(year(mumbai, gain)).toBeGreaterThan(1.02);
+    expect(year(mumbai, gain)).toBeLessThan(1.1);
+  });
+
+  it("gains more further from the equator", () => {
+    const gain = year(london, tiltGain(51.5, 25, 0, london));
+    expect(gain).toBeGreaterThan(1.08);
+    expect(gain).toBeLessThan(1.2);
+  });
+
+  it("gains less when the rows are turned away from the equator", () => {
+    expect(year(london, tiltGain(51.5, 25, 45, london))).toBeLessThan(year(london, tiltGain(51.5, 25, 0, london)));
+  });
+});
+
+describe("yieldBasis", () => {
+  const mumbai = [4.88, 5.74, 6.59, 7.08, 7.09, 5.0, 3.79, 4.04, 4.78, 5.21, 4.84, 4.53];
+  const flatYear = mumbai.reduce((s, v, i) => s + v * DAYS_IN_MONTH[i], 0);
+  const rows = { lat: 19, monthlyGhi: mumbai, tiltDeg: 19, facingDeg: 180, mounting: "tilted rows" as const };
+
+  it("uses the climate record and the standard ratio where nothing was measured", () => {
+    const basis = yieldBasis({ ...rows, openSkyKwhPerKw: null });
+    expect(basis.measured).toBe(false);
+    expect(basis.factor).toBe(PERFORMANCE_RATIO);
+    expect(basis.annualGain).toBeGreaterThan(1);
+  });
+
+  it("scales to Google's measured sunlight where there is a survey", () => {
+    // Google's open-sky figure for Mumbai.
+    const basis = yieldBasis({ ...rows, openSkyKwhPerKw: 1684 });
+    expect(basis.measured).toBe(true);
+    expect(basis.factor).toBeCloseTo((1684 * GOOGLE_DC_TO_AC) / flatYear, 6);
+    // The two sources agree to within a few percent on a flat surface.
+    expect(basis.factor / PERFORMANCE_RATIO).toBeGreaterThan(0.95);
+    expect(basis.factor / PERFORMANCE_RATIO).toBeLessThan(1.05);
+  });
+
+  it("adds no tilt gain to panels lying flush on a slope, whose sunlight was measured on the slope", () => {
+    const basis = yieldBasis({ ...rows, mounting: "flush on the slope", openSkyKwhPerKw: 1900 });
+    expect(basis.gain).toEqual(Array(12).fill(1));
+    expect(basis.annualGain).toBe(1);
+  });
+
+  it("falls back when the measured figure is implausible for the place", () => {
+    expect(yieldBasis({ ...rows, openSkyKwhPerKw: 400 }).measured).toBe(false);
+    expect(yieldBasis({ ...rows, openSkyKwhPerKw: 4000 }).measured).toBe(false);
+  });
+
+  it("feeds sizing: a measured, tilted layout generates what the basis says", () => {
+    const basis = yieldBasis({ ...rows, openSkyKwhPerKw: 1684 });
+    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 100_000, panelAccess: [1], gain: basis.gain, factor: basis.factor });
+    expect(s.annualKwh).toBeCloseTo(1684 * GOOGLE_DC_TO_AC * PANEL_KW * basis.annualGain, 3);
   });
 });

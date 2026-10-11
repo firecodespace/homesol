@@ -232,7 +232,9 @@ export default function MapView({ analysis, chosen, sun, markedShadows }: Props)
         id: "neighbours-fill",
         type: "fill",
         source: "neighbours",
-        paint: { "fill-color": ["get", "colour"], "fill-opacity": ["case", ["get", "minor"], 0.12, 0.3] },
+        // What stands on the surface is filled strongly; neighbours are tinted lightly, since on open
+        // land in a town they can cover most of the view.
+        paint: { "fill-color": ["get", "colour"], "fill-opacity": ["case", ["get", "onSurface"], 0.35, ["get", "minor"], 0.05, 0.16] },
       });
       map.addLayer({
         id: "neighbours-line",
@@ -333,6 +335,11 @@ export default function MapView({ analysis, chosen, sun, markedShadows }: Props)
       } else if (s.mode === "measure") {
         if (s.draft.length === 0) s.addDraftPoint(point);
         else void completeMeasurement(s.draft[0], point);
+      } else if (readyRef.current) {
+        // A tap explains what is under it, for touch screens where nothing can hover.
+        const html = map.queryRenderedFeatures(e.point, { layers: ["panels-fill", "neighbours-fill"] })[0]?.properties?.tip;
+        if (html) tip.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        else tip.remove();
       }
     });
 
@@ -467,6 +474,7 @@ export default function MapView({ analysis, chosen, sun, markedShadows }: Props)
           .map((o) =>
             polygon(o.outline, {
               colour: o.on_surface ? ON_SURFACE_COLOUR : (OBSTRUCTION_COLOURS[o.kind] ?? "#2563eb"),
+              onSurface: o.on_surface,
               minor: !o.on_surface && blame ? (blame.get(o.id) ?? 0) < 0.05 : false,
               tip: describeObstruction(o, blame?.get(o.id), surface, names[o.id]),
             }),

@@ -244,8 +244,29 @@ class Tile:
         return self.frame.pixel_of(*self.frame.to_map(lng, lat))
 
 
+#: Recently fetched tiles, newest last. Reopening a property, or outlining a roof just found by a
+#: tap, asks for the same place again; Google bills each request and can take half a minute.
+_TILES: dict[tuple, tuple[float, Tile]] = {}
+TILE_CACHE_SECONDS = 20 * 60
+TILE_CACHE_SIZE = 6
+
+
 def fetch_tile(lng: float, lat: float, radius_m: float, pixel_m: float = PIXEL_M) -> Tile:
-    """Download heights, sunlight, building mask and photo around a point."""
+    """Heights, sunlight, building mask and photo around a point. Treat the result as read-only."""
+    # Five decimal places is about a metre.
+    place = (round(lng, 5), round(lat, 5), math.ceil(radius_m), pixel_m)
+    kept = _TILES.get(place)
+    if kept and time.monotonic() - kept[0] < TILE_CACHE_SECONDS:
+        return kept[1]
+    tile = _fetch_tile(lng, lat, radius_m, pixel_m)
+    _TILES.pop(place, None)
+    _TILES[place] = (time.monotonic(), tile)
+    while len(_TILES) > TILE_CACHE_SIZE:
+        _TILES.pop(next(iter(_TILES)))
+    return tile
+
+
+def _fetch_tile(lng: float, lat: float, radius_m: float, pixel_m: float) -> Tile:
     key = _key()
     with httpx.Client(timeout=40) as client:
         layers = _layers(client, key, lng, lat, radius_m, pixel_m=pixel_m)

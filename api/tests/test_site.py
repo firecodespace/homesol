@@ -97,7 +97,7 @@ def test_outline_of_open_ground_ignores_the_building_inside_it():
     tile = make_tile(heights)
     inside = np.zeros((N, N), dtype=bool)
     inside[30:80, 30:80] = True
-    region, plane = site.surface_in_outline(tile.heights, inside)
+    region, plane = site.surface_in_outline(tile.heights, inside, PX)
     surface = site.describe(tile, region, plane)
     assert surface.kind == "ground"
     assert surface.area_m2 == pytest.approx((50 * 50 - 20 * 20) * PX * PX, abs=5)
@@ -109,11 +109,41 @@ def test_outline_on_a_hillside_is_sloped_ground_with_its_facing_direction():
     tile = make_tile(heights)
     inside = np.zeros((N, N), dtype=bool)
     inside[50:110, 50:110] = True
-    region, plane = site.surface_in_outline(tile.heights, inside)
+    region, plane = site.surface_in_outline(tile.heights, inside, PX)
     surface = site.describe(tile, region, plane)
     assert surface.kind == "sloped_ground"
     assert surface.tilt_deg == pytest.approx(math.degrees(math.atan(0.3)), abs=0.5)
     assert surface.faces_deg == pytest.approx(270, abs=2)  # faces west, downhill
+
+
+def test_outline_across_a_ridge_plans_the_larger_face_and_not_an_average_of_both():
+    # A low-pitched gabled roof, about 14 degrees: ridge east-west at row 80, eaves at rows 50 and 110.
+    heights = np.full((N, N), 10.0)
+    rows = np.arange(N)[:, None]
+    roof = 14.0 + 0.25 * PX * (30 - np.abs(rows - 80))
+    heights[50:110, 40:120] = np.broadcast_to(roof, (N, N))[50:110, 40:120]
+    tile = make_tile(heights)
+    inside = np.zeros((N, N), dtype=bool)
+    inside[62:108, 50:110] = True  # 9 m of the north face and 14 m of the south face
+    region, plane = site.surface_in_outline(tile.heights, inside, PX)
+    surface = site.describe(tile, region, plane)
+    assert surface.kind == "sloped_roof"
+    assert surface.tilt_deg == pytest.approx(math.degrees(math.atan(0.25)), abs=1.5)
+    assert surface.faces_deg == pytest.approx(180, abs=5)  # the south face is the larger part
+    assert region[86:108, 50:110].mean() > 0.95
+    assert region[62:74, 50:110].mean() < 0.05  # the north face is left out
+
+
+def test_outline_of_a_flat_roof_leaves_out_what_stands_on_it(street):
+    inside = np.zeros((N, N), dtype=bool)
+    inside[58:102, 38:82] = True  # house A with a metre of ground all round
+    region, plane = site.surface_in_outline(street.heights, inside, PX)
+    surface = site.describe(street, region, plane)
+    assert surface.kind == "roof"
+    assert surface.tilt_deg < 1
+    assert surface.area_m2 == pytest.approx(400 - 4, abs=8)
+    assert not region[72, 52]  # the tank
+    assert not region[59, 60]  # the ground beside the house
 
 
 def test_obstructions_are_measured_named_and_placed(street):
@@ -137,6 +167,25 @@ def test_obstructions_are_measured_named_and_placed(street):
     assert labels[90, 60] == 1 and labels[71, 51] == tank["id"] and labels[80, 100] == neighbour["id"]
     # The shed to the north-east is lower than the roof, so it is not an obstruction.
     assert labels[27, 105] == 0
+
+
+def test_rooftop_structures_joined_by_something_lower_are_separate_but_a_stepped_room_is_one():
+    heights = np.full((N, N), 10.0)
+    heights[60:100, 40:80] = 16.0  # a flat roof
+    heights[64:72, 44:52] = 18.4  # a stair room, 4 m x 4 m
+    heights[66:70, 56:60] = 17.7  # a tank two metres from it
+    heights[67:69, 52:56] = 17.2  # joined by something lower than either
+    heights[80:88, 60:72] = 18.5  # another room, with part of its top a little lower
+    heights[80:88, 66:72] = 18.0
+    tile = make_tile(heights)
+    surface = site.surface_at(tile, *lnglat(tile, 90, 60))
+    _, found = site.find_obstructions(tile, surface)
+    on_roof = sorted((o for o in found if o["on_surface"]), key=lambda o: -o["area_m2"])
+    # The stepped room is one thing; the room and the tank joined by a lower wall are two.
+    assert [o["kind"] for o in on_roof] == ["room", "room", "tank"]
+    assert on_roof[0]["area_m2"] == pytest.approx(4 * 6, abs=1)
+    assert on_roof[1]["height_above_m"] == pytest.approx(2.4, abs=0.2)
+    assert on_roof[2]["height_above_m"] == pytest.approx(1.7, abs=0.2)
 
 
 def test_site_model_packs_rasters_the_app_can_decode(street):

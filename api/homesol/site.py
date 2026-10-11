@@ -25,10 +25,17 @@ from .google_solar import NO_DATA, SolarDataUnavailable, Tile, _inside, fetch_ti
 SURFACE_SLOPE_LIMIT = 1.2
 #: First pass of finding a surface from a tap keeps points this close to the tapped height.
 LEVEL_BAND_M = 0.4
+#: How far from the tap the first pass looks.
+FIRST_PATCH_RADIUS_M = 3.0
 #: Later passes keep points this close to the plane fitted through the surface, so slopes are followed.
 PLANE_BAND_M = 0.5
-#: Points of a hand-drawn outline this close to its fitted plane belong to the surface.
+#: Open ground inside a hand-drawn outline is kept when it lies this close to the outline's plane.
+#: Ground is rougher than a roof, so the band is wider than `PLANE_BAND_M`.
 OUTLINE_BAND_M = 0.75
+#: An outline's plane is looked for by fitting planes to patches about this wide...
+OUTLINE_PATCH_M = 3.0
+#: ...and taking the one that most of the outline lies within this distance of.
+OUTLINE_TIGHT_BAND_M = 0.3
 #: A surface lower than this above nearby ground is ground, not a roof.
 ROOF_MIN_HEIGHT_M = 1.5
 #: A surface tilted more than this is called sloped.
@@ -43,6 +50,11 @@ GROUND_SEARCH_M = 12.0
 MIN_SURFACE_M2 = 8.0
 #: Something on the surface counts as a structure when it stands this far above it.
 STRUCTURE_MIN_M = 0.5
+#: Structures on the surface are tested for being several things from this height up: a tank and a
+#: stair room joined by a low wall, or by the blur between them in the height data, are two.
+STRUCTURE_SPLIT_M = 1.0
+#: Each of them must keep at least this much footprint above the level where they part.
+STRUCTURE_CORE_M2 = 0.5
 #: Something beside the surface counts as an obstruction when it rises this far above it.
 NEIGHBOUR_MIN_M = 1.0
 #: Notches in the surface's edge up to this wide are treated as part of it, so a stair room at the
@@ -268,16 +280,21 @@ def grow_surface(heights: np.ndarray, seed: tuple[int, int], pixel_m: float) -> 
     """
     The continuous surface under a tapped pixel, and the plane through it.
 
-    The first pass keeps to the tapped height, which finds a flat roof and stops
-    at a neighbour's step or a tree. Each later pass fits a plane through what
-    was found and keeps to that plane instead, so on a sloped roof or hillside
-    the surface spreads up and down the slope while still stopping at walls.
+    The first pass takes a small patch around the tap at the tapped height. Each
+    later pass fits a plane through what has been found and spreads across
+    everything lying on that plane: the whole of a flat roof, or one face of a
+    sloped one, stopping at walls, at a neighbour's step, and at the ridge or
+    hip where the next face begins.
     """
     step = SURFACE_SLOPE_LIMIT * pixel_m
     valid = np.isfinite(heights) & (heights > NO_DATA + 1)
-    region = _grow(heights, seed, valid & (np.abs(heights - heights[seed]) <= LEVEL_BAND_M), step)
+    # The first pass stays close to the tap. On a hipped or pyramid roof, everything at the tapped
+    # height is a ring running right round the building; a small patch stays on the one face tapped.
+    rows, cols = np.mgrid[0 : heights.shape[0], 0 : heights.shape[1]]
+    nearby = np.hypot(rows - seed[0], cols - seed[1]) * pixel_m <= FIRST_PATCH_RADIUS_M
+    region = _grow(heights, seed, valid & nearby & (np.abs(heights - heights[seed]) <= LEVEL_BAND_M), step)
     plane = np.array([0.0, 0.0, float(heights[seed])])
-    for _ in range(5):
+    for _ in range(8):
         if region.sum() < 12:
             break
         plane = fit_plane(heights, region)
@@ -292,27 +309,84 @@ def grow_surface(heights: np.ndarray, seed: tuple[int, int], pixel_m: float) -> 
     return region, plane
 
 
-def surface_in_outline(heights: np.ndarray, inside: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _dominant_plane(heights: np.ndarray, valid: np.ndarray, pixel_m: float) -> np.ndarray | None:
+    """
+    The plane that more of an outlined area lies on than any other.
+
+    Planes are fitted to small patches all over the outline, and each is judged
+    by how much of the whole outline lies close to it. On a flat roof every
+    patch gives the same answer. On an outline drawn across the ridge of a
+    pitched roof, the patches on the larger face win, where one plane fitted
+    to everything would cut through both faces and describe neither.
+    """
+    size = max(3, round(OUTLINE_PATCH_M / pixel_m))
+    rows, cols = np.nonzero(valid)
+    top, bottom, left, right = rows.min(), rows.max() + 1, cols.min(), cols.max() + 1
+    # Each candidate is judged against a sample of the outline, which is plenty and keeps this quick.
+    every = max(1, len(rows) // 4000)
+    sample = np.c_[cols[::every], rows[::every], np.ones(len(rows[::every]))]
+    sample_heights = heights[rows[::every], cols[::every]].astype(float)
+    stride = max(1, size // 2, math.ceil(math.sqrt((bottom - top) * (right - left) / 400)))
+
+    best, best_count = None, 0
+    for r in range(top, max(top + 1, bottom - size + 1), stride):
+        for c in range(left, max(left + 1, right - size + 1), stride):
+            window = valid[r : r + size, c : c + size]
+            if window.sum() < 0.6 * size * size:
+                continue
+            patch_rows, patch_cols = np.nonzero(window)
+            design = np.c_[patch_cols + c, patch_rows + r, np.ones(len(patch_rows))]
+            patch_heights = heights[r : r + size, c : c + size][window].astype(float)
+            plane, *_ = np.linalg.lstsq(design, patch_heights, rcond=None)
+            # A patch that is not itself flat sits across an edge and says nothing about the surface.
+            if np.sqrt(np.mean((design @ plane - patch_heights) ** 2)) > OUTLINE_TIGHT_BAND_M:
+                continue
+            count = int((np.abs(sample @ plane - sample_heights) <= OUTLINE_TIGHT_BAND_M).sum())
+            if count > best_count:
+                best, best_count = plane, count
+    return best
+
+
+def surface_in_outline(heights: np.ndarray, inside: np.ndarray, pixel_m: float) -> tuple[np.ndarray, np.ndarray]:
     """
     The surface a hand-drawn outline is about, and the plane through it.
 
     An outline drawn by hand is loose: it takes in the stair room on the roof,
-    a strip of ground beside the building, a neighbour's corner. The surface is
-    the outline's dominant plane, and everything well above or below is left out.
+    a strip of ground beside the building, a neighbour's corner, the far side
+    of a ridge. The surface is the plane most of the outline lies on, and
+    everything well above or below that plane is left out.
     """
     valid = inside & np.isfinite(heights) & (heights > NO_DATA + 1)
     if valid.sum() < 12:
         raise SolarDataUnavailable("Google has no height data inside this outline.")
-    # Start from the fullest half-metre band of heights, then follow whatever plane it lies on.
-    levels, counts = np.unique(np.round(heights[valid] * 2) / 2, return_counts=True)
-    level = float(levels[counts.argmax()])
-    chosen = valid & (np.abs(heights - level) <= 1.0)
-    if chosen.sum() < 0.3 * valid.sum():
-        chosen = valid
-    plane = fit_plane(heights, chosen)
+
+    def off_plane(plane: np.ndarray) -> np.ndarray:
+        return np.abs(heights - plane_heights(plane, heights.shape))
+
+    plane = _dominant_plane(heights, valid, pixel_m)
+    if plane is None:
+        # Nowhere is flat enough to fit a patch to: start from the fullest half-metre band of heights.
+        levels, counts = np.unique(np.round(heights[valid] * 2) / 2, return_counts=True)
+        chosen = valid & (np.abs(heights - float(levels[counts.argmax()])) <= 1.0)
+        plane = fit_plane(heights, chosen if chosen.sum() >= 0.3 * valid.sum() else valid)
+    else:
+        # Settle the plane on everything that lies close to it.
+        chosen = valid & (off_plane(plane) <= OUTLINE_TIGHT_BAND_M)
+        for _ in range(4):
+            if chosen.sum() < 12:
+                break
+            plane = fit_plane(heights, chosen)
+            keep = valid & (off_plane(plane) <= OUTLINE_TIGHT_BAND_M)
+            if np.array_equal(keep, chosen):
+                break
+            chosen = keep
+        if chosen.sum() >= 12 and height_above_ground(heights, chosen, plane, pixel_m) >= ROOF_MIN_HEIGHT_M:
+            # A roof. Keep to the plane found: widening and refitting would tip it across a ridge.
+            return valid & (off_plane(plane) <= PLANE_BAND_M), plane
+
+    # Ground is rough and gently curved. Take a wider band and let the plane settle on all of it.
     for _ in range(6):
-        residual = np.abs(heights - plane_heights(plane, heights.shape))
-        keep = valid & (residual <= OUTLINE_BAND_M)
+        keep = valid & (off_plane(plane) <= OUTLINE_BAND_M)
         if keep.sum() < 12 or np.array_equal(keep, chosen):
             break
         chosen = keep
@@ -439,6 +513,57 @@ def _box_blur(values: np.ndarray) -> np.ndarray:
     return sum(padded[1 + dr : 1 + dr + values.shape[0], 1 + dc : 1 + dc + values.shape[1]] for dr, dc in _NEIGHBOURS8) / 9
 
 
+def _split_structures(standing: np.ndarray, above: np.ndarray, pixel_m: float) -> np.ndarray:
+    """
+    Label each structure standing on the surface, 1..n.
+
+    Things that touch are first taken as one. Each is then sliced at rising
+    heights, a quarter of a metre at a time; if at some height it comes apart
+    into several tall cores, it is that many structures, and each core spreads
+    back down to its own foot. A room with an uneven top stays one piece,
+    because below its top it is all joined.
+    """
+    pieces = _components(standing)
+    labels = np.zeros(standing.shape, dtype=np.int64)
+    smallest = max(2, round(STRUCTURE_CORE_M2 / pixel_m**2))
+    count = 0
+    for k in range(1, int(pieces.max()) + 1):
+        window = _crop(pieces == k, 1)
+        piece = pieces[window] == k
+        height = np.where(piece, above[window], 0.0)
+        top = float(np.percentile(height[piece], 90))
+
+        cores, kept = None, [0]
+        cut = STRUCTURE_SPLIT_M
+        while cut <= 0.8 * top:
+            sliced = _components(piece & (height > cut))
+            sizes = np.bincount(sliced.ravel())
+            big = [i for i in range(1, len(sizes)) if sizes[i] >= smallest]
+            if len(big) > len(kept):
+                cores, kept = sliced, big
+            cut += 0.25
+
+        local = np.zeros(piece.shape, dtype=np.int64)
+        if cores is None:
+            count += 1
+            local[piece] = count
+        else:
+            for i in kept:
+                count += 1
+                local[cores == i] = count
+            while True:
+                grown = local.copy()
+                for dr, dc in _NEIGHBOURS4:
+                    neighbour = _shift_values(local, dr, dc)
+                    take = piece & (grown == 0) & (neighbour > 0)
+                    grown[take] = neighbour[take]
+                if np.array_equal(grown, local):
+                    break
+                local = grown
+        labels[window][piece] = local[piece]
+    return labels
+
+
 def find_obstructions(tile: Tile, surface: Surface) -> tuple[np.ndarray, list[dict]]:
     """
     Everything that could cast a shadow on the surface, measured from the height data.
@@ -495,7 +620,7 @@ def find_obstructions(tile: Tile, surface: Surface) -> tuple[np.ndarray, list[di
     # Structures standing on the surface: inside its footprint, above its plane.
     standing = footprint & ~region & valid & (above > STRUCTURE_MIN_M)
     if standing.any():
-        pieces = _components(standing)
+        pieces = _split_structures(standing, above, px)
         for k in range(1, int(pieces.max()) + 1):
             piece = pieces == k
             item = record(piece, 1, True)
@@ -539,10 +664,18 @@ def find_obstructions(tile: Tile, surface: Surface) -> tuple[np.ndarray, list[di
     # as a neighbour. It belongs to the roof when it is small, low and wrapped by the surface.
     for item in neighbours:
         small = item["area_m2"] <= EDGE_STRUCTURE_MAX_M2 and item["height_above_m"] <= EDGE_STRUCTURE_MAX_HEIGHT_M
-        if small and _touch_share(item["_mask"], region[::scale, ::scale]) >= EDGE_STRUCTURE_TOUCH:
-            item["on_surface"], item["distance_m"] = True, 0.0
-            item["kind"], item["name"] = _name_structure(item["area_m2"], item["height_above_m"])
-    found += [n for n in neighbours if n["on_surface"]]
+        if not small or _touch_share(item["_mask"], region[::scale, ::scale]) < EDGE_STRUCTURE_TOUCH:
+            continue
+        item["on_surface"] = True
+        # It may be more than one thing: a stair room with a tank beside it.
+        parts = _split_structures(item["_mask"], above[::scale, ::scale], px * scale)
+        for k in range(1, int(parts.max()) + 1):
+            part = parts == k
+            structure = record(part, scale, True)
+            if structure is None or structure["area_m2"] < 0.75:
+                continue
+            structure["kind"], structure["name"] = _name_structure(structure["area_m2"], structure["height_above_m"])
+            found.append({**structure, "_mask": part, "_scale": scale})
     neighbours = [n for n in neighbours if not n["on_surface"]]
     neighbours.sort(key=lambda o: -o["elevation_deg"])
     found += neighbours[: MAX_OBSTRUCTIONS - len(found)]
@@ -575,7 +708,7 @@ def _pack(values: np.ndarray) -> str:
     return base64.b64encode(zlib.compress(np.ascontiguousarray(values).tobytes(), 6)).decode()
 
 
-def build(tile: Tile, surface: Surface, outline: list[list[float]], found_by: str) -> dict:
+def build(tile: Tile, surface: Surface, outline: list[list[float]], found_by: str, covers: float | None = None) -> dict:
     """The site model sent to the app: rasters on one grid, the surface, and its obstructions."""
     if tile.flux is None:
         raise SolarDataUnavailable("Google has no sunlight data for this location.")
@@ -621,6 +754,8 @@ def build(tile: Tile, surface: Surface, outline: list[list[float]], found_by: st
             "faces_deg": round(surface.faces_deg),
             "faces": compass(surface.faces_deg),
             "found_by": found_by,
+            #: Share of a hand-drawn outline that the surface takes up; low when the outline spans several roof faces.
+            "covers": None if covers is None else round(covers, 2),
             #: True when the surface runs past the edge of the data, so it is incomplete.
             "cut_off": bool(edge[0].any() or edge[-1].any() or edge[:, 0].any() or edge[:, -1].any()),
         },
@@ -698,6 +833,8 @@ def from_outline(outline: list[tuple[float, float]]) -> dict:
     inside = _inside(col_idx, row_idx, corners)
     if not inside.any():
         raise SolarDataUnavailable("This outline is outside the area Google returned.")
-    region, plane = surface_in_outline(tile.heights, inside)
+    region, plane = surface_in_outline(tile.heights, inside, tile.pixel_m)
     surface = describe(tile, region, plane)
-    return {"found": True, **build(tile, surface, [list(p) for p in outline], "outline")}
+    measured = inside & np.isfinite(tile.heights) & (tile.heights > NO_DATA + 1)
+    covers = float(region.sum() / max(1, measured.sum()))
+    return {"found": True, **build(tile, surface, [list(p) for p in outline], "outline", covers)}

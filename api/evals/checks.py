@@ -12,7 +12,7 @@ import re
 from homesol import agents, finance, policy
 from homesol.agents import baseline_finances, largest_system_kw
 
-from .extract import CURRENCY_FITS, Quantity, language_of, normalise, quantities, stopword_shares, strip_urls
+from .extract import CURRENCY_FITS, Quantity, decimal_commas, language_of, normalise, quantities, stopword_shares, strip_urls
 
 WORD_LIMIT = 150
 #: Kinds that are checked by the two headline number checks.
@@ -21,6 +21,8 @@ YEAR_KINDS = ("years", "months")
 OTHER_KINDS = ("units", "kw", "watts", "percent", "panels", "floors", "area", "metres", "degrees", "hours", "days", "time", "bare")
 POOLS = ("money", "years", "units", "kw", "watts", "percent", "panels", "floors", "area", "metres", "degrees", "hours", "days", "time", "any")
 FEET_PER_METRE, SQ_FEET_PER_M2 = 3.281, 10.764
+#: Languages that write 4,4 kW and 4.220 kWh.
+DECIMAL_COMMA_LANGUAGES = ("de", "es")
 
 #: Finance fields that depend on the electricity price, so on the tariff slabs when rate_basis is discom_slabs.
 SLAB_FIELDS = ("bill_before", "bill_after", "first_year_savings", "payback_years", "lifetime_savings", "surplus_credit")
@@ -29,7 +31,9 @@ _UNVERIFIED = re.compile(
     normalise(
         r"unverif|unconfirm|(?:not|n't) (?:yet |been |fully |officially |independently )*(?:verified|checked|confirmed)|"
         r"needs? (?:to be |further )?(?:check|verif|confirm)|still needs? check|indicative|provisional|"
-        r"(?:yet|still) to be (?:verified|checked|confirmed)|verify|double.check|cross.check|सत्यापि|सत्यापन|पुष्टि|जा[ँं]च|अपुष्ट|सांकेतिक|"
+        r"(?:yet|still) to be (?:verified|checked|confirmed)|verify|double.check|cross.check|"
+        r"worth (?:confirming|checking)|could ?n[o']t (?:be )?(?:locate|find|confirm|verif)\w*|confirm(?:ing)? (?:this|it|that|the rate|with)|"
+        r"सत्यापि|सत्यापन|पुष्टि|जा[ँं]च|अपुष्ट|सांकेतिक|"
         r"jaa?nch|pakk[ai] nahi|confirm (?:nahi|nahin|karna|kar|hona)|check (?:nahi|kar)|चेक|कन्फर्म|pushti"
     ),
     re.I,
@@ -50,14 +54,17 @@ def _tolerance(q: Quantity, truth: float) -> float:
     Half of the last digit the writer stated ("about 5 years" covers 4.5-5.5,
     "₹1.6 lakh" covers ₹1.55-1.65 lakh). For amounts it is never more than 5%
     of the true figure, so "₹2 lakh" does not cover ₹1.65 lakh, and never less
-    than 0.5%, so ₹91,500 covers ₹91,532 whatever the digits look like.
+    than 0.5%, so ₹91,500 covers ₹91,532 whatever the digits look like. Amounts
+    under 100 may always be rounded to the nearest whole one.
     """
     half = q.step / 2
     if q.kind == "percent":
         return (1.0 if q.step >= 1 else half) + 1e-9  # "75%" for a measured 0.74, but not "10%" for 12
     if q.kind in ("years", "months", "kw", "watts", "panels", "floors", "metres", "degrees", "hours", "days", "time"):
         return half + 1e-9
-    return min(max(half, 0.005 * abs(truth)), max(0.05 * abs(truth), 0.005)) + 1e-9
+    # Small amounts may be rounded to the whole rupee or dollar: "about $4 a month" for $3.75.
+    cap = max(0.05 * abs(truth), 0.5 if abs(truth) < 100 else 0.005)
+    return min(max(half, 0.005 * abs(truth)), cap) + 1e-9
 
 
 def matches(q: Quantity, pool: list[tuple[float, str]]) -> list[str]:
@@ -187,6 +194,9 @@ def _site_truths(survey: dict, truth: dict) -> None:
         length(o.get("distance_m"), f"survey.obstructions[{i}].distance_m")
         if o.get("share_of_shade") is not None:
             add("percent", o["share_of_shade"] * 100, f"survey.obstructions[{i}].share_of_shade %")
+    shares = [o.get("share_of_shade") for o in survey.get("obstructions") or []]
+    if shares and all(value is not None for value in shares):  # the fact sheet states what the listed causes leave over
+        add("percent", 100 - sum(round(value * 100) for value in shares), "share of the shade from causes the survey does not list")
     add("panels", panels.get("fit"), "survey.panels.fit")
     add("panels", panels.get("recommended"), "survey.panels.recommended")
     add("degrees", panels.get("tilt_deg"), "survey.panels.tilt_deg")
@@ -212,10 +222,12 @@ def build_truth(case: dict, survey: dict, tool_calls: list[dict], snap: dict) ->
     # justified is a separate check.
     for call in tool_calls:
         if call["tool"] == "estimate_finances":
-            try:
-                returned = json.loads(call.get("output") or "")
-            except ValueError:
-                continue
+            returned = call.get("result")  # recorded with the call; runs from before October 2026 kept the tool's JSON instead
+            if returned is None:
+                try:
+                    returned = json.loads(call.get("output") or "")
+                except ValueError:
+                    continue
             if isinstance(returned, dict) and "bill_before" in returned:
                 _finance_truths(returned, f"toolcall{_args(call.get('input') or {})}", truth)
 
@@ -374,6 +386,9 @@ def _resolve(name, truth: dict):
     """A fact named in a case ("payback_years", "whatif.net_cost", "bill_after/12") as (value, description)."""
     if isinstance(name, (int, float)):
         return float(name), str(name)
+    clock = re.fullmatch(r"(\d{1,2}):(\d{2})", name)
+    if clock:  # a clock time, as minutes after midnight
+        return int(clock.group(1)) * 60.0 + int(clock.group(2)), name
     source = truth["baseline"]
     label = name
     if name.startswith("whatif."):
@@ -404,7 +419,7 @@ def check_required(case: dict, answer: str, items: list[Quantity], truth: dict) 
             hit = next((o for o in options if normalise(o).lower() in text), None)
             (present if hit else missing).append({"text any of": options} if not hit else {"text": hit})
             continue
-        kinds = {"money": MONEY_KINDS + ("bare",), "years": YEAR_KINDS, "other": OTHER_KINDS}[kind]
+        kinds = {"money": MONEY_KINDS + ("bare",), "years": YEAR_KINDS, "other": OTHER_KINDS, "time": ("time",)}[kind]
         wanted = [(v * (12 if q_kind == "months" else 1), label, q_kind) for v, label in map(lambda o: _resolve(o, truth), options) if v is not None for q_kind in kinds]
         hit = None
         if kind == "money" and any(value == 0 for value, _, _ in wanted):
@@ -476,11 +491,12 @@ _ROLES = [
     # (role, words that announce it, finance fields a figure announced that way may be)
     ("lifetime savings", r"lifetime|life time|over (?:its|the system'?s?|25)|25[- ]year|जीवन ?भर|जीवनकाल|लाइफटाइम|25 साल|zindagi bhar|25 saal",
      ("lifetime_savings", "lifetime_savings+net_cost")),
-    ("surplus credit", r"surplus|extra units|export|अधिशेष|अतिरिक्त यूनिट|credit|क्रेडिट", ("surplus_credit", "surplus_rate")),
+    ("surplus credit", r"surplus|extra units|export|अधिशेष|अतिरिक्त यूनिट", ("surplus_credit", "surplus_rate")),
     ("savings", r"\bsav(?:e|es|ed|ing|ings)\b|बचत|bachat",
      ("first_year_savings", "first_year_savings/12", "lifetime_savings", "lifetime_savings+net_cost")),
-    ("cost after subsidy", r"after (?:the |a |central )*subsidy|net cost|out of pocket|सब्सिडी के बाद|नेट लागत|नेट कॉस्ट|शुद्ध लागत|subsidy ke baad|net kharch", ("net_cost",)),
-    ("cost before subsidy", r"before (?:the |any |central )*subsidy|gross cost|सब्सिडी से पहले|subsidy se pehle",
+    ("cost after subsidy", r"after (?:the |a |any |central |government |govt\.? )*subsid(?:y|ies)|net cost|(?:सब्सिडी|subsid\w*)(?: \([^)]*\))? (?:के|ke) (?:बाद|baad)|सब्सिडी (?:घटाकर|काटकर|काटने)|subsidy (?:ghata|kaat)\w*|नेट लागत|नेट कॉस्ट|शुद्ध लागत|net kharch|"
+     r"(?:सब्सिडी|subsid\w*).{0,60}?(?:चुका|देंगे|देना होगा|you(?:'d| would| will)? pay|dena hoga|denge|pay kar\w*)", ("net_cost",)),
+    ("cost before subsidy", r"before (?:the |a |any |central |government |govt\.? )*subsid(?:y|ies)|gross cost|(?:सब्सिडी|subsid\w*) (?:से|se) (?:पहले|pehle)",
      ("gross_cost", "gross_cost_range.low", "gross_cost_range.high", "household.vendor_quote", "typical cost x system_kw")),
     ("subsidy", r"subsid|सब्सिडी", ("subsidy", "central_subsidy.max_total", "central_subsidy.per_kw_first_2kw", "central_subsidy.per_kw_third_kw", "kW")),
 ]
@@ -488,6 +504,8 @@ _ROLES = [(name, re.compile(normalise(pattern), re.I), fields) for name, pattern
 _PAYBACK = re.compile(normalise(r"pay(?:s|ing)? (?:for itself|back)|payback|recover|get (?:my|your) money back|वसूल|वापस|wasool|vasool|wapas"), re.I)
 #: "No subsidy is counted, so you pay the full $21,500": the figure is not being called a subsidy.
 _NO_SUBSIDY = re.compile(normalise(r"\b(?:no|not|without|n't|nahi|nahin|bina|zero)\b|नहीं|बिना"), re.I)
+_TAX_CREDIT = re.compile(r"tax[- ]credits?", re.I)
+_PER_UNIT = re.compile(normalise(r"(?:per|a|each|every|/)\s*(?:unit|kwh)|प्रति यूनिट|हर यूनिट|har unit|prati unit"), re.I)
 
 
 def check_labels(answer: str, pools: dict) -> dict:
@@ -503,9 +521,12 @@ def check_labels(answer: str, pools: dict) -> dict:
         money = [q for q in found if q.kind in MONEY_KINDS]
         years = [q for q in found if q.kind == "years"]
         if len(money) == 1:
-            role = next(((name, fields) for name, pattern, fields in _ROLES if pattern.search(line)), None)
+            wording = _TAX_CREDIT.sub(" ", line)  # a tax credit is not the credit paid for surplus units
+            role = next(((name, fields) for name, pattern, fields in _ROLES if pattern.search(wording)), None)
             if role and role[0] == "subsidy" and _NO_SUBSIDY.search(line):
                 role = None
+            if role and role[0] in ("savings", "lifetime savings") and _PER_UNIT.search(line) and money[0].value < 100:
+                role = None  # a rate per unit ("priced at ₹7.60 a unit for your savings") is not being called an amount saved
             traced, _ = _trace(money, MONEY_KINDS, pools)
             if role and traced:
                 sources = [s for s in traced[0]["sources"] if not s.startswith("question")]
@@ -524,8 +545,16 @@ def check_labels(answer: str, pools: dict) -> dict:
     return {"pass": not wrong, "detail": {"mislabelled": wrong, "sentences_checked": looked}}
 
 
-def check_unknowns(case: dict, answer: str) -> dict:
-    """On a question the advisor has no data for, it must not put a number on the unknown thing."""
+#: Sources that make a figure the household's own: typed by them, or calculated for them.
+_OWN_FIGURES = ("question", "baseline.", "whatif.", "toolcall", "survey.household")
+
+
+def check_unknowns(case: dict, answer: str, pools: dict) -> dict:
+    """On a question the advisor has no data for, it must not put a number of its own on the unknown thing.
+
+    A figure calculated for this household, or one the household typed, may share a sentence with the unknown
+    ("I can't say whether your ₹2 lakh is better in a fixed deposit"), so those do not count.
+    """
     spec = case.get("no_figures_about")
     if not spec:
         return {"pass": None, "detail": "not a no-data case"}
@@ -533,7 +562,10 @@ def check_unknowns(case: dict, answer: str) -> dict:
     hits = []
     for line in _LINE.split(normalise(answer)):
         if terms.search(line):
-            hits += [{"figure": q.text, "sentence": line.strip()[:200]} for q in quantities(line) if q.kind in spec["kinds"]]
+            traced, untraced = _trace(quantities(line), tuple(spec["kinds"]), pools)
+            # A figure that merely coincides with some tariff or policy number is still a figure for the unknown.
+            own = lambda t: any(s.startswith(_OWN_FIGURES) and not s.endswith(".notes") for s in t["sources"])  # noqa: E731
+            hits += [{"figure": u["text"], "sentence": line.strip()[:200]} for u in [*untraced, *(t for t in traced if not own(t))]]
     return {"pass": not hits, "detail": {"figures_given_for_something_with_no_data": hits}}
 
 
@@ -551,7 +583,8 @@ def check_links(answer: str, snap: dict) -> dict:
 
 
 _INTERNAL = re.compile(
-    r"policy_finance_analyst|site_analyst|estimate_finances|lookup_policy|discom_id|\btools?\b|'(?:msedcl|bescom|delhi|gujarat)'|"
+    r"policy_finance_analyst|site_analyst|estimate_finances|lookup_policy|discom_id|'(?:msedcl|bescom|delhi|gujarat)'|"
+    r"\b(?:my|our) tools?\b|\btools? (?:calls?|results?|outputs?|returned|says?|said|shows?)\b|\b(?:called|calling|used?|using) (?:a|the|my) tool\b|"
     r"\b(?:site|finance|financial|policy)(?: and finance)? analyst\b|\b(?:my|our|the) (?:specialist|analyst|sub-?agent)s?\b|fact sheet|"
     r"share_of_shade|share_of_full_sun|monthly_units|system_kw|limited_by",
     re.I,
@@ -657,6 +690,8 @@ def check_forbidden(case: dict, answer: str) -> dict:
 def run_all(case: dict, survey: dict, raw_answer: str, tool_calls: list[dict], snap: dict) -> dict:
     truth = build_truth(case, survey, tool_calls, snap)
     answer = visible_answer(raw_answer)
+    if case["lang"] in DECIMAL_COMMA_LANGUAGES:
+        answer = decimal_commas(answer)
     items = quantities(answer)
     pools = truth["pools"]
     return {
@@ -668,7 +703,7 @@ def run_all(case: dict, survey: dict, raw_answer: str, tool_calls: list[dict], s
         "required_facts_present": check_required(case, answer, items, truth),
         "figures_match_their_label": check_labels(answer, pools),
         "monthly_yearly_not_confused": check_period(answer, pools),
-        "no_figures_for_unknowns": check_unknowns(case, answer),
+        "no_figures_for_unknowns": check_unknowns(case, answer, pools),
         "nothing_recalled_by_name": check_forbidden(case, answer),
         "links_from_policy_data": check_links(answer, snap),
         "under_150_words": check_length(case, answer),

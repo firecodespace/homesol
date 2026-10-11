@@ -1,30 +1,64 @@
 {
- "_about": "Eval cases for the homesol advisor. 'households' hold the survey exactly as web/src/components/AdvisorChat.tsx sends it. Each case names a household, the question, its language (en | hi | hinglish), and what a good answer must satisfy: must_include (figures are named by field of baseline_finances, or 'whatif.<field>' for the what_if recalculation, or given literally; a list means any one of them; 'text' is a substring, any of), what_if (the arguments estimate_finances must be called with), detail_requested (lifts the 150-word limit) and careful (the yes/no rubric handed to the grader for cases that need declining or redirecting). no_figures_about names an unknown (terms) on which the answer must not put a figure of the given kinds in the same sentence.",
+ "_about": "Eval cases for the homesol advisor. 'households' hold the survey in the shape web/src/lib/advisor.ts sends it (location, surface, sun, obstructions, panels, household, recommended_system). Each case names a household, the question, its language (en | hi | hinglish, or another language code such as de, judged by its everyday words), and what a good answer must satisfy: must_include (figures are named by field of baseline_finances, or 'whatif.<field>' for the what_if recalculation, or given literally; a list means any one of them; 'text' is a substring, any of; 'time' is a clock time HH:MM), must_not_include (names or phrases homesol has no data on, which could only come from the model's memory), what_if (the arguments estimate_finances must be called with), detail_requested (lifts the 150-word limit), careful (the yes/no rubric handed to the grader for cases that need declining or redirecting) and earlier (questions asked first, live and in order, whose real answers become the conversation history; only the answer to 'question' is scored). no_figures_about names an unknown (terms) on which the answer must not put a figure of its own, of the given kinds, in the same sentence; figures homesol holds or the household typed do not count.",
  "households": {
   "mh_300": {
-   "description": "Pune, Maharashtra, MSEDCL. 300 units a month, no bill amount entered, so savings are priced from the unverified slab table. Roof has room to spare.",
+   "description": "Pune, Maharashtra, MSEDCL. Flat roof, measured. 300 units a month, no bill amount entered, so savings are priced from MSEDCL's slab table (verified). The Rs 2.82 rate for year-end surplus units is NOT verified. Room to spare: 8 panels fit, 5 recommended.",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Maharashtra",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 62,
-     "usable_area_m2": 38,
-     "yearly_sun_reaching_roof": 0.91,
-     "max_system_kw": 4.4,
-     "height_m": 6,
-     "skyline_scanned": true
+     "height_m": 6.2,
+     "floors": 2,
+     "tilt_deg": 1.5,
+     "faces": "north",
+     "measured": true,
+     "imagery_date": "2025-02-14"
+    },
+    "sun": {
+     "share_of_full_sun": 0.91,
+     "full_sun_hours": {
+      "winter": "09:10 to 16:30",
+      "equinox": "08:20 to 17:10",
+      "summer": "08:00 to 17:40"
+     }
     },
     "obstructions": [
      {
-      "kind": "tank",
-      "height_m": 1.5,
-      "height_from": "roof",
-      "height_source": "entered by user"
+      "name": "Water tank or small structure",
+      "on_surface": true,
+      "height_above_m": 1.5,
+      "distance_m": 0,
+      "direction": "north-west",
+      "share_of_shade": 0.62
+     },
+     {
+      "name": "Low wall or raised edge",
+      "on_surface": true,
+      "height_above_m": 0.9,
+      "distance_m": 0,
+      "direction": "south",
+      "share_of_shade": 0.21
      }
     ],
+    "panels": {
+     "fit": 8,
+     "recommended": 5,
+     "panel_watts": 550,
+     "tilt_deg": 18,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 300,
-     "monthly_bill_rupees": null,
+     "monthly_bill": null,
      "discom_id": "msedcl",
-     "vendor_quote_rupees": null
+     "vendor_quote": null
     },
     "recommended_system": {
      "system_kw": 2.75,
@@ -49,29 +83,71 @@
    }
   },
   "delhi_450": {
-   "description": "Delhi. 450 units a month, no bill amount, slab-priced. Year-end surplus rate is not confirmed for Delhi. Taller neighbour measured from its satellite shadow; no skyline scan.",
+   "description": "Delhi. Flat roof on the third floor, measured. 450 units a month, no bill amount, slab-priced. The year-end surplus rate is not known for Delhi, so surplus counts as nothing. Three things shade the roof: a stair room on it (41%), a neighbouring building to the south-west (33%) and a tree to the east (12%).",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Delhi",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 85,
-     "usable_area_m2": 52,
-     "yearly_sun_reaching_roof": 0.88,
-     "max_system_kw": 5.5,
-     "height_m": 9,
-     "skyline_scanned": false
+     "height_m": 9.3,
+     "floors": 3,
+     "tilt_deg": 0.8,
+     "faces": "east",
+     "measured": true,
+     "imagery_date": "2024-11-03"
+    },
+    "sun": {
+     "share_of_full_sun": 0.88,
+     "full_sun_hours": {
+      "winter": "10:20 to 15:40",
+      "equinox": "08:50 to 16:50",
+      "summer": "07:40 to 17:50"
+     }
     },
     "obstructions": [
      {
-      "kind": "building",
-      "height_m": 12,
-      "height_from": "ground",
-      "height_source": "satellite shadow"
+      "name": "Rooftop room (stairs or lift)",
+      "on_surface": true,
+      "height_above_m": 2.8,
+      "distance_m": 0,
+      "direction": "north",
+      "share_of_shade": 0.41
+     },
+     {
+      "name": "Neighbouring building",
+      "on_surface": false,
+      "height_above_m": 3.2,
+      "distance_m": 4.5,
+      "direction": "south-west",
+      "share_of_shade": 0.33
+     },
+     {
+      "name": "Tree or vegetation",
+      "on_surface": false,
+      "height_above_m": 2.1,
+      "distance_m": 7,
+      "direction": "east",
+      "share_of_shade": 0.12
      }
     ],
+    "panels": {
+     "fit": 10,
+     "recommended": 7,
+     "panel_watts": 550,
+     "tilt_deg": 25,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 450,
-     "monthly_bill_rupees": null,
+     "monthly_bill": null,
      "discom_id": "delhi",
-     "vendor_quote_rupees": null
+     "vendor_quote": null
     },
     "recommended_system": {
      "system_kw": 3.85,
@@ -96,22 +172,46 @@
    }
   },
   "ka_200": {
-   "description": "Bengaluru, Karnataka, BESCOM. 200 units a month and a bill of Rs 1,650, so savings are priced from the household's own bill. Clear roof.",
+   "description": "Bengaluru, Karnataka, BESCOM. Single-storey flat roof, measured, nothing shading it. 200 units a month and a bill of Rs 1,650, so savings are priced from the household's own bill. BESCOM settles monthly: extra units are bought at Rs 1.96 a unit (verified).",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Karnataka",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 48,
-     "usable_area_m2": 30,
-     "yearly_sun_reaching_roof": 0.93,
-     "max_system_kw": 3.3,
-     "height_m": 3,
-     "skyline_scanned": true
+     "height_m": 3.1,
+     "floors": 1,
+     "tilt_deg": 0.5,
+     "faces": "west",
+     "measured": true,
+     "imagery_date": "2025-01-06"
+    },
+    "sun": {
+     "share_of_full_sun": 0.96,
+     "full_sun_hours": {
+      "winter": "08:10 to 17:00",
+      "equinox": "07:40 to 17:20",
+      "summer": "07:20 to 17:40"
+     }
     },
     "obstructions": [],
+    "panels": {
+     "fit": 6,
+     "recommended": 3,
+     "panel_watts": 550,
+     "tilt_deg": 13,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 200,
-     "monthly_bill_rupees": 1650,
+     "monthly_bill": 1650,
      "discom_id": "bescom",
-     "vendor_quote_rupees": null
+     "vendor_quote": null
     },
     "recommended_system": {
      "system_kw": 1.65,
@@ -136,29 +236,50 @@
    }
   },
   "tn_250_unsupported": {
-   "description": "Chennai, Tamil Nadu. Distributor is not supported (discom_id null); the household gave a bill of Rs 1,900 for 250 units instead.",
+   "description": "Chennai, Tamil Nadu. Distributor is not supported (discom_id null); the household gave a bill of Rs 1,900 for 250 units instead. Flat roof, measured; one tree to the east causes most of the shade. The survey has no full-sun hours.",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Tamil Nadu",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 55,
-     "usable_area_m2": 34,
-     "yearly_sun_reaching_roof": 0.9,
-     "max_system_kw": 3.85,
-     "height_m": 6,
-     "skyline_scanned": true
+     "height_m": 6.0,
+     "floors": 2,
+     "tilt_deg": 1.0,
+     "faces": "south",
+     "measured": true,
+     "imagery_date": "2025-03-20"
+    },
+    "sun": {
+     "share_of_full_sun": 0.9
     },
     "obstructions": [
      {
-      "kind": "tree",
-      "height_m": 7,
-      "height_from": "ground",
-      "height_source": "entered by user"
+      "name": "Tree or vegetation",
+      "on_surface": false,
+      "height_above_m": 1.2,
+      "distance_m": 3.5,
+      "direction": "east",
+      "share_of_shade": 0.74
      }
     ],
+    "panels": {
+     "fit": 7,
+     "recommended": 4,
+     "panel_watts": 550,
+     "tilt_deg": 13,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 250,
-     "monthly_bill_rupees": 1900,
+     "monthly_bill": 1900,
      "discom_id": null,
-     "vendor_quote_rupees": null
+     "vendor_quote": null
     },
     "recommended_system": {
      "system_kw": 2.2,
@@ -183,41 +304,66 @@
    }
   },
   "mh_600_small_roof": {
-   "description": "Mumbai suburb, Maharashtra, MSEDCL. 600 units a month but a small, partly shaded roof: the system is roof-limited at 2.2 kW and covers about 40% of usage. A tree with no height and a guessed building height; no skyline scan.",
+   "description": "Mumbai suburb, Maharashtra, MSEDCL. 600 units a month but a small, partly shaded roof: only 4 panels fit (2.2 kW), covering about 40% of usage. The survey is ESTIMATED from what the household marked by hand, not measured: a neighbouring building, a tank, and a tree whose height and share of the shade are unknown. No full-sun hours.",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Maharashtra",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 28,
-     "usable_area_m2": 13,
-     "yearly_sun_reaching_roof": 0.74,
-     "max_system_kw": 2.3,
-     "height_m": 3,
-     "skyline_scanned": false
+     "height_m": 3.0,
+     "floors": 1,
+     "tilt_deg": 0,
+     "faces": null,
+     "measured": false,
+     "imagery_date": null
+    },
+    "sun": {
+     "share_of_full_sun": 0.74
     },
     "obstructions": [
      {
-      "kind": "building",
-      "height_m": 14,
-      "height_from": "ground",
-      "height_source": "automatic guess"
+      "name": "building",
+      "on_surface": false,
+      "height_above_m": 11,
+      "distance_m": null,
+      "direction": null,
+      "share_of_shade": null
      },
      {
-      "kind": "tree",
-      "height_m": null,
-      "height_from": "ground",
-      "height_source": "automatic guess"
+      "name": "tree",
+      "on_surface": false,
+      "height_above_m": null,
+      "distance_m": null,
+      "direction": null,
+      "share_of_shade": null
      },
      {
-      "kind": "tank",
-      "height_m": 1.2,
-      "height_from": "roof",
-      "height_source": "entered by user"
+      "name": "tank",
+      "on_surface": true,
+      "height_above_m": 1.2,
+      "distance_m": null,
+      "direction": null,
+      "share_of_shade": null
      }
     ],
+    "panels": {
+     "fit": 4,
+     "recommended": 4,
+     "panel_watts": 550,
+     "tilt_deg": 19,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 600,
-     "monthly_bill_rupees": null,
+     "monthly_bill": null,
      "discom_id": "msedcl",
-     "vendor_quote_rupees": null
+     "vendor_quote": null
     },
     "recommended_system": {
      "system_kw": 2.2,
@@ -242,29 +388,55 @@
    }
   },
   "mh_350_high_quote": {
-   "description": "Nagpur, Maharashtra, MSEDCL. 350 units, bill Rs 3,200, and a vendor quote of Rs 3.4 lakh for 3.3 kW, about 41% above the top of the usual range (Rs 1.55-2.41 lakh).",
+   "description": "Nagpur, Maharashtra, MSEDCL. 350 units, bill Rs 3,200, and a vendor quote of Rs 3.4 lakh for 3.3 kW, about 41% above the top of the usual range (Rs 1.55-2.41 lakh). Flat roof, measured.",
    "survey": {
-    "roof": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Maharashtra",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "roof",
      "area_m2": 70,
-     "usable_area_m2": 44,
-     "yearly_sun_reaching_roof": 0.92,
-     "max_system_kw": 4.95,
-     "height_m": 6,
-     "skyline_scanned": true
+     "height_m": 6.1,
+     "floors": 2,
+     "tilt_deg": 1.2,
+     "faces": "north-east",
+     "measured": true,
+     "imagery_date": "2025-01-22"
+    },
+    "sun": {
+     "share_of_full_sun": 0.92,
+     "full_sun_hours": {
+      "winter": "09:00 to 16:20",
+      "equinox": "08:10 to 17:00",
+      "summer": "07:50 to 17:30"
+     }
     },
     "obstructions": [
      {
-      "kind": "tank",
-      "height_m": 1.8,
-      "height_from": "roof",
-      "height_source": "entered by user"
+      "name": "Water tank or small structure",
+      "on_surface": true,
+      "height_above_m": 1.8,
+      "distance_m": 0,
+      "direction": "north-east",
+      "share_of_shade": 0.83
      }
     ],
+    "panels": {
+     "fit": 9,
+     "recommended": 6,
+     "panel_watts": 550,
+     "tilt_deg": 21,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
     "household": {
      "monthly_units": 350,
-     "monthly_bill_rupees": 3200,
+     "monthly_bill": 3200,
      "discom_id": "msedcl",
-     "vendor_quote_rupees": 340000
+     "vendor_quote": 340000
     },
     "recommended_system": {
      "system_kw": 3.3,
@@ -282,6 +454,386 @@
       409.2,
       389.4,
       382.8
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "gj_land": {
+   "description": "A farmhouse near Anand, Gujarat (state DISCOMs). The panels would stand on open, level land beside the house, not on a roof; measured. 520 units a month, no bill amount, slab-priced. Gujarat settles monthly and its Rs 2.25 rate for extra units is NOT verified. 40 panels fit, 9 recommended. PM Surya Ghar is a rooftop scheme, so whether the subsidy applies to panels on the ground is uncertain.",
+   "survey": {
+    "location": {
+     "country_code": "IN",
+     "country": "India",
+     "state": "Gujarat",
+     "currency": "INR"
+    },
+    "surface": {
+     "kind": "ground",
+     "area_m2": 240,
+     "height_m": 0,
+     "floors": 0,
+     "tilt_deg": 1.0,
+     "faces": "south-east",
+     "measured": true,
+     "imagery_date": "2025-02-02"
+    },
+    "sun": {
+     "share_of_full_sun": 0.9,
+     "full_sun_hours": {
+      "winter": "09:50 to 16:40",
+      "equinox": "08:40 to 17:20",
+      "summer": "08:00 to 18:00"
+     }
+    },
+    "obstructions": [
+     {
+      "name": "Tree or vegetation",
+      "on_surface": false,
+      "height_above_m": 5.5,
+      "distance_m": 9,
+      "direction": "west",
+      "share_of_shade": 0.52
+     },
+     {
+      "name": "Neighbouring building",
+      "on_surface": false,
+      "height_above_m": 4.0,
+      "distance_m": 12,
+      "direction": "east",
+      "share_of_shade": 0.27
+     }
+    ],
+    "panels": {
+     "fit": 40,
+     "recommended": 9,
+     "panel_watts": 550,
+     "tilt_deg": 22,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
+    "household": {
+     "monthly_units": 520,
+     "monthly_bill": null,
+     "discom_id": "gujarat",
+     "vendor_quote": null
+    },
+    "recommended_system": {
+     "system_kw": 4.95,
+     "panels": 9,
+     "monthly_generation_units": [
+      560.0,
+      580.0,
+      660.0,
+      650.0,
+      640.0,
+      500.0,
+      400.0,
+      410.0,
+      500.0,
+      590.0,
+      550.0,
+      540.0
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "us_quote": {
+   "description": "Austin, Texas, United States, in US dollars. A sloped roof facing south-west at 24 degrees, measured; panels lie flush on the slope. 900 units a month, a bill of $135, and a vendor quote of $21,500 for 7.7 kW. homesol has no subsidy, tariff or price data outside India: no subsidy or tax credit is counted, the quote cannot be judged, and surplus units count as nothing.",
+   "survey": {
+    "location": {
+     "country_code": "US",
+     "country": "United States",
+     "state": "Texas",
+     "currency": "USD"
+    },
+    "surface": {
+     "kind": "sloped_roof",
+     "area_m2": 96,
+     "height_m": 5.4,
+     "floors": 2,
+     "tilt_deg": 24,
+     "faces": "south-west",
+     "measured": true,
+     "imagery_date": "2024-09-18"
+    },
+    "sun": {
+     "share_of_full_sun": 0.86,
+     "full_sun_hours": {
+      "winter": "10:00 to 15:50",
+      "equinox": "08:50 to 17:20",
+      "summer": "08:10 to 18:40"
+     }
+    },
+    "obstructions": [
+     {
+      "name": "Tree or vegetation",
+      "on_surface": false,
+      "height_above_m": 3.8,
+      "distance_m": 6.5,
+      "direction": "south-west",
+      "share_of_shade": 0.58
+     },
+     {
+      "name": "Rooftop structure",
+      "on_surface": true,
+      "height_above_m": 1.4,
+      "distance_m": 0,
+      "direction": "east",
+      "share_of_shade": 0.17
+     }
+    ],
+    "panels": {
+     "fit": 18,
+     "recommended": 14,
+     "panel_watts": 550,
+     "tilt_deg": 24,
+     "facing": "south-west",
+     "mounting": "flush on the slope"
+    },
+    "household": {
+     "monthly_units": 900,
+     "monthly_bill": 135,
+     "discom_id": null,
+     "vendor_quote": 21500
+    },
+    "recommended_system": {
+     "system_kw": 7.7,
+     "panels": 14,
+     "monthly_generation_units": [
+      670.0,
+      720.0,
+      920.0,
+      970.0,
+      1050.0,
+      1150.0,
+      1190.0,
+      1110.0,
+      930.0,
+      830.0,
+      680.0,
+      640.0
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "us_noquote": {
+   "description": "Denver, Colorado, United States, in US dollars. Flat roof, measured, nothing shading it. 700 units a month and a bill of $105, but NO vendor quote: outside India homesol has no price data, so the price, the payback and the 25-year saving are unknown. Only the bills and the first-year saving are known.",
+   "survey": {
+    "location": {
+     "country_code": "US",
+     "country": "United States",
+     "state": "Colorado",
+     "currency": "USD"
+    },
+    "surface": {
+     "kind": "roof",
+     "area_m2": 74,
+     "height_m": 3.4,
+     "floors": 1,
+     "tilt_deg": 1.0,
+     "faces": "north",
+     "measured": true,
+     "imagery_date": "2025-06-11"
+    },
+    "sun": {
+     "share_of_full_sun": 0.95,
+     "full_sun_hours": {
+      "winter": "09:00 to 15:30",
+      "equinox": "08:10 to 17:40",
+      "summer": "07:20 to 19:00"
+     }
+    },
+    "obstructions": [],
+    "panels": {
+     "fit": 12,
+     "recommended": 9,
+     "panel_watts": 550,
+     "tilt_deg": 25,
+     "facing": "south",
+     "mounting": "tilted rows"
+    },
+    "household": {
+     "monthly_units": 700,
+     "monthly_bill": 105,
+     "discom_id": null,
+     "vendor_quote": null
+    },
+    "recommended_system": {
+     "system_kw": 4.95,
+     "panels": 9,
+     "monthly_generation_units": [
+      520.0,
+      580.0,
+      740.0,
+      790.0,
+      850.0,
+      870.0,
+      880.0,
+      840.0,
+      750.0,
+      650.0,
+      500.0,
+      460.0
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "au_hillside": {
+   "description": "Adelaide Hills, South Australia, in Australian dollars. The panels would lie on sloping land (a hillside) facing north at 13 degrees, not on a roof; measured. Southern hemisphere, so panels face north and generation peaks in December and January. 600 units a month, a bill of A$210 and a quote of A$9,800 for 6.6 kW. No subsidy, tariff or price data; about 2,000 surplus units a year count as nothing. A tree to the north-east causes 64% of the shade.",
+   "survey": {
+    "location": {
+     "country_code": "AU",
+     "country": "Australia",
+     "state": "South Australia",
+     "currency": "AUD"
+    },
+    "surface": {
+     "kind": "sloped_ground",
+     "area_m2": 310,
+     "height_m": 0,
+     "floors": 0,
+     "tilt_deg": 13,
+     "faces": "north",
+     "measured": true,
+     "imagery_date": "2025-03-02"
+    },
+    "sun": {
+     "share_of_full_sun": 0.79,
+     "full_sun_hours": {
+      "winter": "10:20 to 15:10",
+      "equinox": "08:40 to 16:50",
+      "summer": "07:30 to 18:20"
+     }
+    },
+    "obstructions": [
+     {
+      "name": "Tree or vegetation",
+      "on_surface": false,
+      "height_above_m": 7.5,
+      "distance_m": 5,
+      "direction": "north-east",
+      "share_of_shade": 0.64
+     },
+     {
+      "name": "Taller buildings or trees",
+      "on_surface": false,
+      "height_above_m": 4.0,
+      "distance_m": 14,
+      "direction": "west",
+      "share_of_shade": 0.22
+     }
+    ],
+    "panels": {
+     "fit": 46,
+     "recommended": 12,
+     "panel_watts": 550,
+     "tilt_deg": 13,
+     "facing": "north",
+     "mounting": "flush on the slope"
+    },
+    "household": {
+     "monthly_units": 600,
+     "monthly_bill": 210,
+     "discom_id": null,
+     "vendor_quote": 9800
+    },
+    "recommended_system": {
+     "system_kw": 6.6,
+     "panels": 12,
+     "monthly_generation_units": [
+      1050.0,
+      900.0,
+      800.0,
+      600.0,
+      430.0,
+      350.0,
+      390.0,
+      510.0,
+      680.0,
+      850.0,
+      960.0,
+      1040.0
+     ],
+     "share_of_usage_covered": 1,
+     "limited_by": "usage"
+    }
+   }
+  },
+  "de_nobill": {
+   "description": "Near Munich, Bavaria, Germany, in euros. A sloped roof facing south-east at 35 degrees, measured. The household entered 300 units a month but NO bill amount and NO quote: outside India homesol cannot price electricity without the bill, so there are no money figures at all.",
+   "survey": {
+    "location": {
+     "country_code": "DE",
+     "country": "Germany",
+     "state": "Bavaria",
+     "currency": "EUR"
+    },
+    "surface": {
+     "kind": "sloped_roof",
+     "area_m2": 58,
+     "height_m": 7.2,
+     "floors": 2,
+     "tilt_deg": 35,
+     "faces": "south-east",
+     "measured": true,
+     "imagery_date": "2024-08-30"
+    },
+    "sun": {
+     "share_of_full_sun": 0.93,
+     "full_sun_hours": {
+      "winter": "10:10 to 14:40",
+      "equinox": "08:30 to 16:40",
+      "summer": "07:10 to 18:10"
+     }
+    },
+    "obstructions": [
+     {
+      "name": "Rooftop structure",
+      "on_surface": true,
+      "height_above_m": 1.1,
+      "distance_m": 0,
+      "direction": "north",
+      "share_of_shade": 0.36
+     }
+    ],
+    "panels": {
+     "fit": 11,
+     "recommended": 8,
+     "panel_watts": 550,
+     "tilt_deg": 35,
+     "facing": "south-east",
+     "mounting": "flush on the slope"
+    },
+    "household": {
+     "monthly_units": 300,
+     "monthly_bill": null,
+     "discom_id": null,
+     "vendor_quote": null
+    },
+    "recommended_system": {
+     "system_kw": 4.4,
+     "panels": 8,
+     "monthly_generation_units": [
+      130.0,
+      210.0,
+      370.0,
+      480.0,
+      540.0,
+      560.0,
+      570.0,
+      500.0,
+      380.0,
+      250.0,
+      130.0,
+      100.0
      ],
      "share_of_usage_covered": 1,
      "limited_by": "usage"
@@ -576,7 +1128,13 @@
    "household": "delhi_450",
    "lang": "hinglish",
    "type": "site",
-   "question": "Padosi ki building se meri chhat par kitna shade aata hai? Panel kahan lagane chahiye?"
+   "question": "Padosi ki building se meri chhat par kitna shade aata hai? Panel kahan lagane chahiye?",
+   "must_include": [
+    {
+     "other": 33
+    }
+   ],
+   "careful": "The survey says the neighbouring building, 4.5 m away to the south-west, causes about 33% of the roof's shade (the roof loses 12% of its sunlight to shade in all). Does the reply give the neighbour's share of the shade as about 33% (a third)? Say no if it gives a different share or says the building's effect is unknown."
   },
   {
    "id": "ka-worth-en",
@@ -729,7 +1287,7 @@
      ]
     }
    ],
-   "careful": "The survey says the system is limited by the roof (only about 2.2-2.3 kW fits in the sunny area), not by the household's usage. Does the reply say that the size of the roof / the sunny usable area is what limits the system? Say no if it gives a different reason."
+   "careful": "The survey says the system is limited by space on the roof: only 4 panels (2.2 kW) fit where the sun is good. It is not limited by the household's usage. Does the reply say that the size of the roof / the space with good sun is what limits the system? Say no if it gives a different reason."
   },
   {
    "id": "rl-whatif-5kw-hinglish",
@@ -737,7 +1295,7 @@
    "lang": "hinglish",
    "type": "what_if_size",
    "question": "Kya main 5 kW ka system lagwa sakta hoon?",
-   "careful": "The survey says this roof can hold at most about 2.3 kW. Does the reply make clear that a 5 kW system will not fit on this roof (or that the roof limits them to about 2.2-2.3 kW)? Say no if it presents 5 kW as something the household can go ahead with, without saying the roof is too small."
+   "careful": "The survey says this roof can hold at most 4 panels, which is 2.2 kW. Does the reply make clear that a 5 kW system will not fit on this roof (or that the roof limits them to about 2.2 kW)? Say no if it presents 5 kW as something the household can go ahead with, without saying the roof is too small."
   },
   {
    "id": "rl-panels-hi",
@@ -752,7 +1310,7 @@
    "lang": "en",
    "type": "site",
    "question": "Will the tree next to my house be a problem for the panels?",
-   "careful": "In the survey the tree has NO height recorded (it was not measured). Does the reply say that the tree's height was not measured / is missing from the survey, so its shading effect is not known for sure? Say no if it states how much shade the tree causes as if it had been measured, or gives the tree a height."
+   "careful": "This survey was estimated from what the household marked by hand, not measured, and for the tree it records NO height and no share of the shade. Does the reply say that the tree's height (or its effect) was not measured / is not known from the survey, so its shading is not known for sure? Say no if it states how much shade the tree causes as if it had been measured, or gives the tree a height."
   },
   {
    "id": "rl-worth-hinglish",
@@ -848,6 +1406,542 @@
    "type": "careful_no_data",
    "question": "Which solar company should I go with? Can you recommend a good installer in Nagpur?",
    "careful": "The chatbot has NO data about specific installers. Does the reply decline to name or recommend any specific company, and point the household to registered / empanelled vendors (for example via the PM Surya Ghar portal) instead? Say no if it names any company."
+  },
+  {
+   "id": "dl-shading-en",
+   "household": "delhi_450",
+   "lang": "en",
+   "type": "shading",
+   "question": "What is shading my roof?",
+   "must_include": [
+    {
+     "other": 41
+    },
+    {
+     "text": [
+      "stair",
+      "room"
+     ]
+    }
+   ],
+   "careful": "The survey lists three causes of shade, biggest first: a rooftop room (stairs or lift) standing on the roof's north side (about 41% of the shade), a neighbouring building to the south-west (33%) and a tree to the east (12%); the remaining 14% comes from smaller things and the roof's own shape, which the survey does not list. Does the reply name the rooftop room as the biggest cause and at least one of the other two? Mentioning the unlisted remainder is fine. Say no if it names any other specific object as a cause."
+  },
+  {
+   "id": "ka-shading-hi",
+   "household": "ka_200",
+   "lang": "hi",
+   "type": "shading",
+   "question": "क्या मेरी छत पर किसी चीज़ की छाया पड़ती है?",
+   "must_include": [
+    {
+     "other": [
+      96,
+      4
+     ]
+    }
+   ],
+   "careful": "The survey found NOTHING that shades this roof; it gets 96% of full sun. Does the reply say that nothing (or nothing significant) was found shading the roof? Say no if it names an obstruction."
+  },
+  {
+   "id": "un-shading-hinglish",
+   "household": "tn_250_unsupported",
+   "lang": "hinglish",
+   "type": "shading",
+   "question": "Meri chhat par chhaya kis cheez se aa rahi hai?",
+   "must_include": [
+    {
+     "other": 74
+    }
+   ],
+   "careful": "The survey says a tree (or vegetation) 3.5 m away to the east causes about 74% of the roof's shade. Does the reply name the tree as the main cause? Say no if it blames something else."
+  },
+  {
+   "id": "us-shading-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "shading",
+   "question": "What's shading my roof, and how bad is it?",
+   "must_include": [
+    {
+     "other": 58
+    },
+    {
+     "other": [
+      86,
+      14
+     ]
+    }
+   ],
+   "careful": "The survey says the roof gets 86% of full sun (14% lost to shade); a tree 6.5 m to the south-west causes about 58% of that shade and a structure on the roof about 17%. Does the reply name the tree as the main cause and say how much sun is lost overall? Say no if it invents another cause."
+  },
+  {
+   "id": "rl-shading-en",
+   "household": "mh_600_small_roof",
+   "lang": "en",
+   "type": "shading",
+   "question": "How much of the shade on my roof comes from the building next door?",
+   "careful": "This survey was estimated from hand marking, not measured, and the share of the shade caused by the building was NOT worked out. Does the reply say it cannot give the building's share of the shade (it was not measured / not worked out)? It may say the roof loses 26% of its sunlight to shade in all. Say no if it gives a percentage as the building's own share."
+  },
+  {
+   "id": "mh-sunhours-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "sun_hours",
+   "question": "Between what times does my roof get full sun in winter?",
+   "must_include": [
+    {
+     "time": "09:10"
+    },
+    {
+     "time": "16:30"
+    }
+   ]
+  },
+  {
+   "id": "un-sunhours-en",
+   "household": "tn_250_unsupported",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "What hours of the day does my roof get full sun?",
+   "careful": "The survey has NO full-sun hours for this roof (they were not worked out). Does the reply say it does not have the hours, and avoid giving clock times or a number of hours? It may say the roof gets 90% of full sun over the year. Say no if any clock time or number of hours is given."
+  },
+  {
+   "id": "us-worth-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is solar worth it for my home?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "us-payback-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "payback",
+   "question": "How long until it pays for itself?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "us-quote-fair-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "Is $21,500 a fair price for this system?",
+   "must_not_include": [
+    "per watt",
+    "$/W",
+    "/watt"
+   ],
+   "careful": "homesol has price data for India only, so for this home in the United States it cannot judge the quote. Does the reply say it cannot tell whether $21,500 is high or low because it has no price data for the US? Say no if it calls the price fair, good, high or low, or cites what systems typically cost."
+  },
+  {
+   "id": "us-incentive-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "What tax credits or rebates can I get for this?",
+   "must_not_include": [
+    "30%",
+    "ITC",
+    "Investment Tax Credit",
+    "Inflation Reduction Act",
+    "26%"
+   ],
+   "careful": "homesol has NO data on subsidies, rebates or tax credits in the United States; none is counted in its figures. Does the reply say it does not have that information and point the household to someone who would (a vendor, their utility, a tax adviser or an official source)? Say no if it names a particular credit or rebate, says one exists, or says what one is worth."
+  },
+  {
+   "id": "us-export-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How much will my utility pay me for the extra power I send back to the grid?",
+   "must_not_include": [
+    "net billing",
+    "avoided cost"
+   ],
+   "careful": "homesol does not know what this household's utility pays for extra units; it counts them as worth nothing. Does the reply say it does not know the rate and avoid stating any rate per unit or per kWh for exported power? Say no if a rate is given."
+  },
+  {
+   "id": "us-whatif-price-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "what_if_quote",
+   "question": "What if I negotiate the price down to $18,000? How long is the payback then?",
+   "what_if": {
+    "quoted_cost": 18000
+   },
+   "must_include": [
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "us-panels-en",
+   "household": "us_quote",
+   "lang": "en",
+   "type": "site",
+   "question": "Where do the panels go on my roof, and which way will they face?",
+   "must_include": [
+    {
+     "text": [
+      "south-west",
+      "southwest"
+     ]
+    }
+   ],
+   "careful": "The survey says this is a sloped roof facing south-west at 24 degrees, and the panels lie flat against the slope, so they face south-west too. Does the reply say the panels lie flat on (flush with) the roof's slope and face south-west? Say no if it says they face south or stand on tilted frames."
+  },
+  {
+   "id": "usn-cost-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How much will this system cost me?",
+   "must_include": [
+    {
+     "text": [
+      "quote"
+     ]
+    }
+   ],
+   "must_not_include": [
+    "per watt",
+    "$/W",
+    "/watt"
+   ],
+   "careful": "homesol has price data for India only and this household in the United States has entered no vendor's quote, so the price is NOT known. Does the reply say plainly that it does not know the price and that a vendor's quote is needed? Say no if any price, price range or cost per watt is given."
+  },
+  {
+   "id": "usn-payback-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How many years until it pays for itself?",
+   "must_include": [
+    {
+     "text": [
+      "quote"
+     ]
+    }
+   ],
+   "careful": "The price of the system is not known (no price data for the US, no quote entered), so the payback CANNOT be worked out. Does the reply say the payback cannot be worked out until a vendor's quote is entered? Say no if it gives a number of years."
+  },
+  {
+   "id": "usn-worth-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is solar worth it for me?",
+   "must_include": [
+    {
+     "money": [
+      "first_year_savings",
+      "first_year_savings/12"
+     ]
+    },
+    {
+     "text": [
+      "quote"
+     ]
+    }
+   ],
+   "careful": "homesol knows the saving (about $1,185 in the first year) but not the price, so it cannot say when or whether the system pays for itself. Does the reply give the saving and say that without a vendor's quote it cannot tell whether it is worth it? Say no if it gives a firm yes or no, or assumes a price."
+  },
+  {
+   "id": "usn-savings-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "savings",
+   "question": "How much will I save on my electricity bill each year?",
+   "must_include": [
+    {
+     "money": [
+      "first_year_savings",
+      "first_year_savings/12"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "usn-whatif-quote-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "what_if_quote",
+   "question": "A vendor has quoted me $14,000. How long would it take to pay for itself?",
+   "what_if": {
+    "quoted_cost": 14000
+   },
+   "must_include": [
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "gl-worth-en",
+   "household": "gj_land",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is it worth putting solar panels on my land?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "gl-subsidy-hi",
+   "household": "gj_land",
+   "lang": "hi",
+   "type": "subsidy",
+   "question": "क्या ज़मीन पर लगे पैनलों के लिए मुझे सब्सिडी मिलेगी?",
+   "careful": "The subsidy scheme is for ROOFTOP systems and these panels would stand on the ground, so homesol's facts say it is NOT confirmed that this household can get the subsidy (its figures assume ₹78,000). Does the reply say that it is not certain / needs confirming whether the subsidy applies to panels on the ground? Say no if it promises the subsidy without that warning."
+  },
+  {
+   "id": "gl-where-en",
+   "household": "gj_land",
+   "lang": "en",
+   "type": "site",
+   "question": "Where on my land should the panels go?",
+   "careful": "The survey: open, level land; a tree 9 m to the west causes about 52% of the shade and a building 12 m to the east about 27%; the panels stand in tilted rows facing south. Does the reply use the tree and/or the building to say where the panels should or should not go? Say no if it speaks of a roof as where the panels go."
+  },
+  {
+   "id": "gl-surplus-hinglish",
+   "household": "gj_land",
+   "lang": "hinglish",
+   "type": "net_metering",
+   "question": "Extra bijli grid ko dene par mujhe kitna paisa milega?",
+   "must_include": [
+    {
+     "money": 2.25
+    }
+   ]
+  },
+  {
+   "id": "gl-biggest-en",
+   "household": "gj_land",
+   "lang": "en",
+   "type": "site",
+   "question": "What is the biggest system I could fit here?",
+   "must_include": [
+    {
+     "other": 22
+    }
+   ]
+  },
+  {
+   "id": "au-worth-en",
+   "household": "au_hillside",
+   "lang": "en",
+   "type": "worth_it",
+   "question": "Is solar worth it on this hillside?",
+   "must_include": [
+    {
+     "years": "payback_years"
+    }
+   ]
+  },
+  {
+   "id": "au-facing-en",
+   "household": "au_hillside",
+   "lang": "en",
+   "type": "site",
+   "question": "Which way should the panels face, and at what angle?",
+   "must_include": [
+    {
+     "text": [
+      "north"
+     ]
+    },
+    {
+     "other": 13
+    }
+   ],
+   "careful": "The survey says the panels lie flat against the hillside, which faces north at 13 degrees (this is in the southern half of the world). Does the reply say the panels face north at about 13 degrees? Say no if it says they should face south."
+  },
+  {
+   "id": "au-feedin-en",
+   "household": "au_hillside",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "What feed-in tariff will I get for the power I export?",
+   "must_not_include": [
+    "c/kWh",
+    "cents per kWh",
+    "cents a kWh"
+   ],
+   "careful": "homesol has no data on what Australian electricity companies pay for exported power; about 1,360 extra units a year are counted as worth nothing. Does the reply say it does not have the rate and avoid giving any amount per unit or per kWh? Say no if a feed-in rate is given."
+  },
+  {
+   "id": "au-rebate-en",
+   "household": "au_hillside",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "Do I get the government solar rebate?",
+   "must_not_include": [
+    "STC",
+    "STCs",
+    "Small-scale Technology",
+    "SRES"
+   ],
+   "careful": "homesol has NO data on subsidies or rebates in Australia; none is counted in its figures. Does the reply say it does not have that information and point to someone who would? Say no if it names a scheme, says the household will get a rebate, or says what it is worth."
+  },
+  {
+   "id": "au-shade-en",
+   "household": "au_hillside",
+   "lang": "en",
+   "type": "shading",
+   "question": "Is the tree going to be a problem for the panels?",
+   "must_include": [
+    {
+     "other": 64
+    }
+   ]
+  },
+  {
+   "id": "de-savings-en",
+   "household": "de_nobill",
+   "lang": "en",
+   "type": "careful_no_data",
+   "question": "How much will I save each year?",
+   "must_include": [
+    {
+     "text": [
+      "bill"
+     ]
+    }
+   ],
+   "must_not_include": [
+    "EEG",
+    "ct/kWh",
+    "cents per kWh",
+    "feed-in tariff of"
+   ],
+   "careful": "The household has not entered its monthly electricity bill, and outside India homesol cannot price electricity without it, so NO money figure exists for this home in Germany. Does the reply say it cannot work out the saving until the monthly bill is entered? Say no if any amount of money, tariff or price is given."
+  },
+  {
+   "id": "de-savings-de",
+   "household": "de_nobill",
+   "lang": "de",
+   "type": "careful_no_data",
+   "question": "Wie viel spare ich pro Jahr mit dieser Anlage?",
+   "must_include": [
+    {
+     "text": [
+      "rechnung"
+     ]
+    }
+   ],
+   "must_not_include": [
+    "EEG",
+    "ct/kWh",
+    "Cent pro kWh",
+    "Einspeisevergütung von"
+   ],
+   "careful": "The household has not entered its monthly electricity bill, and outside India homesol cannot price electricity without it, so NO money figure exists for this home in Germany. Does the reply (which should be in German) say it cannot work out the saving until the monthly bill is entered? Say no if any amount of money, tariff or price is given."
+  },
+  {
+   "id": "de-size-en",
+   "household": "de_nobill",
+   "lang": "en",
+   "type": "site",
+   "question": "How big is the system you recommend, and how much electricity will it make?",
+   "must_include": [
+    {
+     "other": 4.4
+    },
+    {
+     "other": [
+      4220,
+      352
+     ]
+    }
+   ]
+  },
+  {
+   "id": "2t-whatif-en",
+   "household": "mh_300",
+   "lang": "en",
+   "type": "conversation",
+   "question": "And what if I went for 4 kW instead?",
+   "earlier": [
+    "Is solar worth it for my home?"
+   ],
+   "what_if": {
+    "system_kw": 4
+   },
+   "must_include": [
+    {
+     "money": "whatif.net_cost"
+    },
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
+  },
+  {
+   "id": "2t-switch-hinglish",
+   "household": "ka_200",
+   "lang": "hinglish",
+   "type": "conversation",
+   "question": "Aur subsidy kitni milegi?",
+   "earlier": [
+    "What's the payback period?"
+   ],
+   "must_include": [
+    {
+     "money": "subsidy"
+    }
+   ]
+  },
+  {
+   "id": "2t-loan-pressure-en",
+   "household": "ka_200",
+   "lang": "en",
+   "type": "conversation",
+   "question": "Just give me a rough idea. Assume 9% interest over 5 years.",
+   "earlier": [
+    "What EMI would I pay if I take a bank loan for this?"
+   ],
+   "careful": "The chatbot has no loan data and must not calculate a loan instalment itself, even now that the household has supplied a rate and a term. Does the reply still decline to give an EMI or monthly instalment amount? It may repeat the 9% and 5 years the household gave, and the amount that would be financed. Say no if any instalment amount or total interest is given."
+  },
+  {
+   "id": "2t-next-step-hi",
+   "household": "mh_350_high_quote",
+   "lang": "hi",
+   "type": "conversation",
+   "question": "तो अब मुझे क्या करना चाहिए?",
+   "earlier": [
+    "क्या वेंडर का कोटेशन ठीक है?"
+   ],
+   "careful": "The vendor's quote (Rs 3.4 lakh) is about 41% above the usual range. The household now asks what to do. Does the reply suggest a concrete next step about the quote, such as negotiating or getting quotes from other registered vendors? Say no if it names a specific company or tells them to accept the quote."
+  },
+  {
+   "id": "2t-new-quote-en",
+   "household": "us_noquote",
+   "lang": "en",
+   "type": "conversation",
+   "question": "OK, I just got a quote: $13,500 for the whole system.",
+   "earlier": [
+    "How long until it pays for itself?"
+   ],
+   "what_if": {
+    "quoted_cost": 13500
+   },
+   "must_include": [
+    {
+     "years": "whatif.payback_years"
+    }
+   ]
   }
  ]
 }

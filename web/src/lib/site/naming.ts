@@ -82,10 +82,23 @@ async function annotate(model: SiteModel, items: SiteObstruction[]): Promise<str
  * by obstruction id; empty when there is nothing worth naming or the model is
  * unavailable, in which case the names from the height data stand.
  */
-export async function nameObstructions(
+export function nameObstructions(
   model: SiteModel,
   blame: Map<number, number> | null,
 ): Promise<Record<number, ObstructionName>> {
+  // One paid request per property, however many times the screen asks.
+  let request = requests.get(model);
+  if (!request) {
+    request = requestNames(model, blame);
+    request.catch(() => requests.delete(model));
+    requests.set(model, request);
+  }
+  return request;
+}
+
+const requests = new WeakMap<SiteModel, Promise<Record<number, ObstructionName>>>();
+
+async function requestNames(model: SiteModel, blame: Map<number, number> | null): Promise<Record<number, ObstructionName>> {
   if (!model.photo) return {};
   const share = (o: SiteObstruction) => blame?.get(o.id) ?? 0;
   const items = model.obstructions

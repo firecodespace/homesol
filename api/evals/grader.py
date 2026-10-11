@@ -44,18 +44,21 @@ CRITERIA = {
         "Could an adult who has never dealt with solar panels or electricity tariffs follow this reply without "
         "looking anything up? Everyday words are fine: units, subsidy, kW, bill, savings, panel, vendor, quote. "
         "A term the household used in its own question is fine too. "
-        "Look for two things. (a) Jargon: any of these terms, or its Hindi equivalent, used in the reply with no "
-        "few-word explanation of what it means: net metering, kWh, kWp, DISCOM, tariff slab, inverter, feed-in "
-        "tariff, wheeling charge, surplus credit, gross cost, net cost, payback period. (b) Data dump: the reply is "
-        "mostly a list of labelled fields such as 'Gross Cost: ...', 'Surplus Credit: ...' rather than sentences a "
-        "person would say. For THIS criterion use this JSON instead: "
-        '{"unexplained_terms": [<each such term copied exactly as it appears in the reply>], "data_dump": true or false, '
-        '"verdict": "yes" if the list is empty and data_dump is false, otherwise "no"}'
+        "Look for two things. (a) Jargon. Go through these terms and their Hindi equivalents: net metering, kWh, "
+        "kWp, DISCOM, tariff slab, inverter, feed-in tariff, wheeling charge, surplus credit, gross cost, net cost, "
+        "payback period. For each one that appears in the reply, copy the words of the reply that tell the reader "
+        "what it means (in brackets, after a dash or 'yaani', or in a nearby sentence). If the reply never says what "
+        "it means, leave that empty. (b) Data dump: the reply is mostly a list of labelled fields such as "
+        "'Gross Cost: ...', 'Surplus Credit: ...' rather than sentences a person would say. For THIS criterion use "
+        "this JSON instead: "
+        '{"terms": [{"term": "<copied exactly as it appears in the reply>", "explained_by": "<words copied from the reply, or empty>"}], '
+        '"data_dump": true or false, "verdict": "yes" if every term has an explanation and data_dump is false, otherwise "no"}'
     ),
     "flags_unverified": (
-        "Does the reply tell the household that the electricity price data behind its savings or payback figures "
-        "is unverified, indicative, not yet checked or confirmed, or still needs checking against the regulator's "
-        "order? A general 'this is an estimate', or advice to get a vendor quote or site visit, does NOT count."
+        "The reply quotes a figure that rests on data homesol has not been able to confirm: the rate the electricity "
+        "company pays for extra (surplus) units, or the tariff behind the savings. Does the reply tell the household "
+        "that this rate or data is unverified, not yet confirmed, reported but not checked, or still needs "
+        "confirming? A general 'this is an estimate', or advice to get a vendor quote or site visit, does NOT count."
     ),
 }
 
@@ -128,9 +131,13 @@ def layperson_verdict(question: str, answer: str, listed: list[str], data_dump: 
 def _layperson(question: str, answer: str, earlier: str = "") -> dict:
     result = grade(question, answer, CRITERIA["layperson_clear"], earlier)
     parsed = result.pop("parsed", {})
-    if "unexplained_terms" not in parsed:
+    if "terms" not in parsed:
         return result
-    return layperson_verdict(question, answer, [str(t) for t in parsed.get("unexplained_terms") or []], bool(parsed.get("data_dump")))
+    terms = [t for t in parsed.get("terms") or [] if isinstance(t, dict)]
+    unexplained = [str(t.get("term", "")) for t in terms if not str(t.get("explained_by") or "").strip()]
+    verdict = layperson_verdict(question, answer, unexplained, bool(parsed.get("data_dump")))
+    explained = {str(t.get("term", "")): str(t["explained_by"]) for t in terms if str(t.get("explained_by") or "").strip()}
+    return {**verdict, "reason": json.dumps({**json.loads(verdict["reason"]), "explained": explained}, ensure_ascii=False)}
 
 
 def grade_case(case: dict, answer: str, unverified_applies: bool, history: list[dict] | None = None) -> dict:

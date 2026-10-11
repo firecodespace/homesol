@@ -27,6 +27,7 @@ function site(at: LngLat, size: number, edit: (m: SiteModel, set: (r0: number, r
     surface: { kind: "roof", area_m2: 0, height_m: 6, floors: 2, tilt_deg: 0, faces_deg: 180, faces: "south", found_by: "tap", cut_off: false },
     obstructions: [],
     measured: true,
+    openSkyKwhPerKw: null,
     imageryDate: null,
     imageryQuality: null,
   };

@@ -208,16 +208,12 @@ def get_feedback_summary() -> dict:
 def post_advise(req: AdviseRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 
-    from .agents import build_advisor, clean_answer, fact_sheet
+    from . import agents
 
-    transcript = "".join(f"{'Household' if t.role == 'user' else 'You'}: {t.text}\n" for t in req.history)
-    prompt = (
-        f"This household's facts:\n{fact_sheet(req.survey)}\n\n"
-        + (f"The conversation so far:\n{transcript}\n" if transcript else "")
-        + f"The household asks: {req.question}"
-    )
+    history = [{"role": turn.role, "text": turn.text} for turn in req.history]
     try:
-        result = build_advisor(req.survey)(prompt)
+        return {"answer": agents.answer(req.question, req.survey, history)}
     except (ClientError, BotoCoreError) as err:
         raise HTTPException(502, f"The advisor's model is unavailable: {err}") from err
-    return {"answer": clean_answer(str(result))}
+    except Exception as err:  # Strands raises its own error types for throttling and overflow
+        raise HTTPException(502, f"The advisor could not answer just now: {err}") from err

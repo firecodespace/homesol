@@ -11,9 +11,12 @@ them, so one configuration is compared with another by setting them for a run:
     BEDROCK_AGENT_MODEL_ID=us.anthropic.claude-sonnet-4-6 BEDROCK_AGENT_EFFORT=medium \
         api/.venv/bin/python api/evals/run.py --out api/evals/runs/sonnet-medium
 
-A full run makes roughly 70 advisor conversations and 220 short grader calls on
-Bedrock. Results go to api/evals/runs/<timestamp>/: results.jsonl (everything
-per case), summary.json and summary.txt.
+A full run makes 86 advisor conversations (81 cases, five of them two-turn) and
+about 210 short grader calls on Bedrock: roughly 5 minutes and 3 to 4 US dollars
+with a Claude Opus 4.6 advisor. Results go to api/evals/runs/<timestamp>/:
+results.jsonl (everything per case), summary.json, summary.txt and models.json
+(which models answered and which one graded). Runs saved before 11 October 2026
+used the old survey shape and cannot be re-scored with these checks.
 """
 
 from __future__ import annotations

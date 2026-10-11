@@ -27,6 +27,8 @@ export interface SiteSurface {
   faces_deg: number;
   faces: string;
   found_by: "tap" | "outline";
+  /** Share of a hand-drawn outline the surface takes up; low when the outline spans several roof faces. */
+  covers?: number | null;
   cut_off: boolean;
 }
 
@@ -51,6 +53,8 @@ export interface SiteModel {
   obstructions: SiteObstruction[];
   /** Whether this came from Google's 3D survey, or was estimated from what the user marked. */
   measured: boolean;
+  /** Google's measured yearly sunlight for an open spot here, kWh per kW of panel; the scale `access` is a share of. */
+  openSkyKwhPerKw: number | null;
   imageryDate: string | null;
   imageryQuality: string | null;
 }
@@ -66,6 +70,7 @@ export interface SiteResponse {
   outline: LngLat[];
   surface: SiteSurface;
   obstructions: SiteObstruction[];
+  sunlight?: { surface: number; open_sky: number; share: number };
   imagery_date: string | null;
   imagery_quality: string | null;
 }
@@ -110,6 +115,7 @@ export async function decodeSite(res: SiteResponse): Promise<SiteModel> {
     surface: res.surface,
     obstructions: res.obstructions,
     measured: true,
+    openSkyKwhPerKw: res.sunlight?.open_sky ?? null,
     imageryDate: res.imagery_date,
     imageryQuality: res.imagery_quality,
   };
@@ -207,6 +213,7 @@ export function modelFromCells(
     },
     obstructions: [],
     measured: false,
+    openSkyKwhPerKw: null,
     imageryDate: null,
     imageryQuality: null,
   };

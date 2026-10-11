@@ -30,15 +30,31 @@ aws lambda update-function-code --region "${REGION}" --function-name "${FUNCTION
   --s3-bucket "${BUCKET}" --s3-key api.zip --query 'LastUpdateStatus' --output text
 aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
 
-# Pass the Google Maps key from api/.env to the function, keeping its other settings.
-GOOGLE_KEY="$(grep -E '^GOOGLE_MAPS_API_KEY=.+' "${ROOT}/api/.env" 2>/dev/null | cut -d= -f2- || true)"
-if [[ -n "${GOOGLE_KEY}" ]]; then
-  echo "== Setting the Google Maps key on the function"
-  ENVIRONMENT="$(aws lambda get-function-configuration --region "${REGION}" --function-name "${FUNCTION}" --query 'Environment.Variables' --output json \
-    | GOOGLE_KEY="${GOOGLE_KEY}" python3 -c 'import json, os, sys; v = json.load(sys.stdin); v["GOOGLE_MAPS_API_KEY"] = os.environ["GOOGLE_KEY"]; print(json.dumps({"Variables": v}))')"
-  aws lambda update-function-configuration --region "${REGION}" --function-name "${FUNCTION}" \
-    --environment "${ENVIRONMENT}" --query 'LastUpdateStatus' --output text
-  aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
+# Bring the function's settings in line with api/.env, keeping everything else it has: the Google
+# Maps key, and which Bedrock model does which job. A model variable missing from api/.env is
+# removed from the function, so the default in the code applies in both places.
+if [[ -f "${ROOT}/api/.env" ]]; then
+echo "== Syncing settings to the function"
+ENVIRONMENT="$(aws lambda get-function-configuration --region "${REGION}" --function-name "${FUNCTION}" --query 'Environment.Variables' --output json \
+  | ENV_FILE="${ROOT}/api/.env" python3 -c '
+import json, os, sys
+live = json.load(sys.stdin) or {}
+local = {}
+for line in open(os.environ["ENV_FILE"]):
+    name, sep, value = line.strip().partition("=")
+    if sep and value and not name.startswith("#"):
+        local[name] = value
+if "GOOGLE_MAPS_API_KEY" in local:
+    live["GOOGLE_MAPS_API_KEY"] = local["GOOGLE_MAPS_API_KEY"]
+for name in ("BEDROCK_AGENT_MODEL_ID", "BEDROCK_SPECIALIST_MODEL_ID", "BEDROCK_VISION_MODEL_ID"):
+    if name in local:
+        live[name] = local[name]
+    else:
+        live.pop(name, None)
+print(json.dumps({"Variables": live}))')"
+aws lambda update-function-configuration --region "${REGION}" --function-name "${FUNCTION}" \
+  --environment "${ENVIRONMENT}" --query 'LastUpdateStatus' --output text
+aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
 fi
 
 API_URL="$(aws lambda get-function-url-config --region "${REGION}" --function-name "${FUNCTION}" --query 'FunctionUrl' --output text)"

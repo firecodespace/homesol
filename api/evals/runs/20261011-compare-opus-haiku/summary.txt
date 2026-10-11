@@ -1,0 +1,41 @@
+advisor us.anthropic.claude-opus-4-6-v1 (effort low)  specialists us.anthropic.claude-haiku-4-5-20251001-v1:0 (effort low)  grader us.anthropic.claude-sonnet-4-6
+cases 26  answered 26  errored 0
+latency  median 9.46s  p90 13.91s  max 18.36s  mean 9.76s  (median answered from the facts 6.49s, with a specialist 13.03s)
+cases calling each tool: site_analyst 5, policy_finance_analyst 7, lookup_policy 1, estimate_finances 5; none at all 14
+cases passing every deterministic check: 24/26
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl    de
+language_match                   26/26   100%    0    100%  100%  100%  100%
+currency_matches_survey          19/19   100%    7    100%  100%  100%     -
+money_figures_traceable          18/19    95%    7    100%   50%  100%     -
+year_figures_traceable           11/11   100%   15    100%  100%  100%     -
+other_figures_traceable          17/18    94%    8    100%  100%   67%  100%
+figures_match_their_label        16/16   100%   10    100%  100%  100%     -
+monthly_yearly_not_confused      11/11   100%   15    100%  100%  100%     -
+no_figures_for_unknowns            2/2   100%   24    100%     -     -     -
+nothing_recalled_by_name           2/2   100%   24    100%     -     -  100%
+links_from_policy_data             7/7   100%   19    100%  100%  100%     -
+required_facts_present           19/19   100%    7    100%  100%  100%  100%
+under_150_words                  25/25   100%    1    100%  100%  100%  100%
+no_markdown                      26/26   100%    0    100%  100%  100%  100%
+no_leaked_reasoning              26/26   100%    0    100%  100%  100%  100%
+no_internal_names                26/26   100%    0    100%  100%  100%  100%
+unverified_data_flagged            3/3   100%   23    100%     -     -     -
+what_if_recalculated               5/5   100%   21    100%     -  100%     -
+tool_arguments_justified           5/5   100%   21    100%     -  100%     -
+ALL OF THE ABOVE               264/266  99.2%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl    de
+first_sentence_answers           25/26    96%    0     94%  100%  100%  100%
+layperson_clear                  23/26    88%    0     94%  100%   67%  100%
+careful_handling                 13/13   100%    0    100%  100%  100%  100%
+flags_unverified                   3/3   100%    0    100%     -     -     -
+ALL OF THE ABOVE                 64/68  94.1%
+
+FAILURES
+- mh-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-payback-hi [det] money_figures_traceable: {"untraced": [{"text": "₹10.38", "value": 10.38, "kind": "money", "context": "ल में कुल बचत (सिस्टम की लागत निकालकर): लगभग ₹10.38 लakh। - आपका बिजली बिल ल"}]}
+- dl-detail-en [graded] first_sentence_answers: "The first sentence is a lead-in ('Here's the full breakdown...') with the actual answer only arriving later."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"tariff slabs\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- dl-shade-hinglish [det] other_figures_traceable: {"untraced": [{"text": "4%", "value": 4.0, "kind": "percent", "context": ". Matlab saal bhar ki total sunlight ka sirf 4% ke aas paas wo building"}]}
+- un-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"

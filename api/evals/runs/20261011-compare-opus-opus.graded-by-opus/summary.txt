@@ -1,0 +1,44 @@
+advisor us.anthropic.claude-opus-4-6-v1 (effort low)  specialists us.anthropic.claude-opus-4-6-v1 (effort low)  grader us.anthropic.claude-opus-4-6-v1
+cases 26  answered 26  errored 0
+latency  median 10.79s  p90 17.49s  max 21.39s  mean 11.21s  (median answered from the facts 6.47s, with a specialist 16.22s)
+cases calling each tool: site_analyst 5, policy_finance_analyst 7, lookup_policy 1, estimate_finances 5; none at all 14
+cases passing every deterministic check: 24/26
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl    de
+language_match                   26/26   100%    0    100%  100%  100%  100%
+currency_matches_survey          19/19   100%    7    100%  100%  100%     -
+money_figures_traceable          18/19    95%    7    100%   50%  100%     -
+year_figures_traceable           15/15   100%   11    100%  100%  100%     -
+other_figures_traceable          17/17   100%    9    100%  100%  100%  100%
+figures_match_their_label        18/18   100%    8    100%  100%  100%     -
+monthly_yearly_not_confused      11/11   100%   15    100%  100%  100%     -
+no_figures_for_unknowns            2/2   100%   24    100%     -     -     -
+nothing_recalled_by_name           2/2   100%   24    100%     -     -  100%
+links_from_policy_data             5/5   100%   21    100%  100%  100%     -
+required_facts_present           19/19   100%    7    100%  100%  100%  100%
+under_150_words                  24/25    96%    1    100%  100%   83%  100%
+no_markdown                      26/26   100%    0    100%  100%  100%  100%
+no_leaked_reasoning              26/26   100%    0    100%  100%  100%  100%
+no_internal_names                26/26   100%    0    100%  100%  100%  100%
+unverified_data_flagged            3/3   100%   23    100%     -     -     -
+what_if_recalculated               5/5   100%   21    100%     -  100%     -
+tool_arguments_justified           5/5   100%   21    100%     -  100%     -
+ALL OF THE ABOVE               267/269  99.3%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl    de
+first_sentence_answers           25/26    96%    0     94%  100%  100%  100%
+layperson_clear                  20/26    77%    0     88%  100%   33%  100%
+careful_handling                 13/13   100%    0    100%  100%  100%  100%
+flags_unverified                   3/3   100%    0    100%     -     -     -
+ALL OF THE ABOVE                 61/68  89.7%
+
+FAILURES
+- mh-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-payback-hi [det] money_figures_traceable: {"untraced": [{"text": "₹10.38", "value": 10.38, "kind": "money", "context": "ल में कुल बचत (सिस्टम की लागत निकालकर): करीब ₹10.38 लakh। - आपका बिजली बिल ल"}]}
+- dl-detail-en [graded] first_sentence_answers: "The first sentence is a lead-in ('Here's the full breakdown...') that introduces the answer but does not itself provide any cost or savings figure."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"tariff order\", \"DERC domestic slabs\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"surplus units/year would be sent to the grid\", \"deficit-recovery\", \"pension surcharges\", \"power-purchase adjustment\", \"pays for itself in about 5.9 years\"]}"
+- dl-shade-hinglish [det] under_150_words: {"words": 168, "limit": 150}
+- ka-whatif-3kw-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- un-subsidy-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- us-incentive-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- 2t-switch-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"

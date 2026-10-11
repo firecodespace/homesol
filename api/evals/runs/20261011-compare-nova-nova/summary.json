@@ -1,0 +1,370 @@
+{
+ "models": {
+  "advisor_model_id": "us.amazon.nova-pro-v1:0",
+  "advisor_effort": "low",
+  "specialist_model_id": "us.amazon.nova-pro-v1:0",
+  "specialist_effort": "low",
+  "grader_model_id": "us.anthropic.claude-opus-4-6-v1"
+ },
+ "code_under_test": {
+  "git_commit": "0e59f8c",
+  "uncommitted_under_api": [
+   " M homesol/agents.py",
+   " M homesol/google_solar.py",
+   " M homesol/main.py",
+   " M homesol/site.py",
+   " M tests/test_finance.py",
+   " M tests/test_site.py",
+   "?? pytest.ini"
+  ],
+  "sha256": {
+   "homesol/agents.py": "681e2822bb55af1b",
+   "homesol/finance.py": "cb8748ecda5de41f",
+   "homesol/policy.py": "eabfb917b59f35fb",
+   "homesol/main.py": "e231eafa632c6a30",
+   "data/policies.json": "6986570e04948300"
+  },
+  "note": "Read when the run starts. If these files are edited while a run is in progress, the run still uses what was loaded at the start."
+ },
+ "cases": 26,
+ "answered": 26,
+ "errored": [],
+ "latency_s": {
+  "median": 3.24,
+  "p90": 7.79,
+  "max": 9.42,
+  "mean": 4.7,
+  "median_answered_from_the_facts": 2.99,
+  "median_with_a_specialist": 6.93
+ },
+ "tools": {
+  "site_analyst": 2,
+  "policy_finance_analyst": 9,
+  "lookup_policy": 1,
+  "estimate_finances": 4
+ },
+ "no_tool_called": [
+  "mh-subsidy-hinglish",
+  "mh-payback-hi",
+  "dl-invest-en",
+  "dl-detail-en",
+  "dl-shade-hinglish",
+  "ka-loan-en",
+  "ka-panels-en",
+  "un-tariff-en",
+  "qh-fair-hi",
+  "dl-shading-en",
+  "us-incentive-en",
+  "usn-payback-en",
+  "gl-where-en",
+  "de-savings-de",
+  "2t-switch-hinglish"
+ ],
+ "cases_with_a_model_error_retried": [],
+ "tokens_by_agent": {
+  "policy_finance_analyst": {
+   "inputTokens": 37401,
+   "outputTokens": 998
+  },
+  "advisor": {
+   "inputTokens": 145628,
+   "outputTokens": 4592
+  },
+  "site_analyst": {
+   "inputTokens": 2934,
+   "outputTokens": 80
+  }
+ },
+ "deterministic_overall": {
+  "passed": 231,
+  "scored": 235,
+  "rate": 0.983
+ },
+ "graded_overall": {
+  "passed": 61,
+  "scored": 66,
+  "rate": 0.9242
+ },
+ "deterministic": {
+  "language_match": {
+   "passed": 25,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 0.962,
+   "failed_ids": [
+    "mh-payback-hi"
+   ]
+  },
+  "currency_matches_survey": {
+   "passed": 16,
+   "scored": 16,
+   "not_applicable": 10,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "money_figures_traceable": {
+   "passed": 16,
+   "scored": 16,
+   "not_applicable": 10,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "year_figures_traceable": {
+   "passed": 9,
+   "scored": 10,
+   "not_applicable": 16,
+   "rate": 0.9,
+   "failed_ids": [
+    "usn-whatif-quote-en"
+   ]
+  },
+  "other_figures_traceable": {
+   "passed": 12,
+   "scored": 12,
+   "not_applicable": 14,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "figures_match_their_label": {
+   "passed": 11,
+   "scored": 11,
+   "not_applicable": 15,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "monthly_yearly_not_confused": {
+   "passed": 6,
+   "scored": 6,
+   "not_applicable": 20,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_figures_for_unknowns": {
+   "passed": 2,
+   "scored": 2,
+   "not_applicable": 24,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "nothing_recalled_by_name": {
+   "passed": 2,
+   "scored": 2,
+   "not_applicable": 24,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "links_from_policy_data": {
+   "passed": 2,
+   "scored": 2,
+   "not_applicable": 24,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "required_facts_present": {
+   "passed": 18,
+   "scored": 19,
+   "not_applicable": 7,
+   "rate": 0.947,
+   "failed_ids": [
+    "usn-whatif-quote-en"
+   ]
+  },
+  "under_150_words": {
+   "passed": 25,
+   "scored": 25,
+   "not_applicable": 1,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_markdown": {
+   "passed": 26,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_leaked_reasoning": {
+   "passed": 26,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_internal_names": {
+   "passed": 26,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "unverified_data_flagged": {
+   "passed": 1,
+   "scored": 1,
+   "not_applicable": 25,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "what_if_recalculated": {
+   "passed": 4,
+   "scored": 5,
+   "not_applicable": 21,
+   "rate": 0.8,
+   "failed_ids": [
+    "usn-whatif-quote-en"
+   ]
+  },
+  "tool_arguments_justified": {
+   "passed": 4,
+   "scored": 4,
+   "not_applicable": 22,
+   "rate": 1.0,
+   "failed_ids": []
+  }
+ },
+ "graded": {
+  "first_sentence_answers": {
+   "passed": 26,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "layperson_clear": {
+   "passed": 22,
+   "scored": 26,
+   "not_applicable": 0,
+   "rate": 0.846,
+   "failed_ids": [
+    "mh-subsidy-hinglish",
+    "mh-surplus-en",
+    "dl-detail-en",
+    "qh-negotiate-en"
+   ]
+  },
+  "careful_handling": {
+   "passed": 12,
+   "scored": 13,
+   "not_applicable": 0,
+   "rate": 0.923,
+   "failed_ids": [
+    "gl-where-en"
+   ]
+  },
+  "flags_unverified": {
+   "passed": 1,
+   "scored": 1,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  }
+ },
+ "deterministic_by_language": {
+  "en": {
+   "language_match": 1.0,
+   "currency_matches_survey": 1.0,
+   "money_figures_traceable": 1.0,
+   "year_figures_traceable": 0.857,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": 1.0,
+   "nothing_recalled_by_name": 1.0,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 0.9,
+   "under_150_words": 1.0,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": 1.0,
+   "what_if_recalculated": 0.75,
+   "tool_arguments_justified": 1.0
+  },
+  "hi": {
+   "language_match": 0.5,
+   "currency_matches_survey": 1.0,
+   "money_figures_traceable": 1.0,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "nothing_recalled_by_name": null,
+   "links_from_policy_data": null,
+   "required_facts_present": 1.0,
+   "under_150_words": 1.0,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": null,
+   "tool_arguments_justified": null
+  },
+  "hinglish": {
+   "language_match": 1.0,
+   "currency_matches_survey": 1.0,
+   "money_figures_traceable": 1.0,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "nothing_recalled_by_name": null,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 1.0,
+   "under_150_words": 1.0,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": 1.0,
+   "tool_arguments_justified": 1.0
+  },
+  "de": {
+   "language_match": 1.0,
+   "currency_matches_survey": null,
+   "money_figures_traceable": null,
+   "year_figures_traceable": null,
+   "other_figures_traceable": null,
+   "figures_match_their_label": null,
+   "monthly_yearly_not_confused": null,
+   "no_figures_for_unknowns": null,
+   "nothing_recalled_by_name": 1.0,
+   "links_from_policy_data": null,
+   "required_facts_present": 1.0,
+   "under_150_words": 1.0,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": null,
+   "tool_arguments_justified": null
+  }
+ },
+ "graded_by_language": {
+  "en": {
+   "first_sentence_answers": 1.0,
+   "layperson_clear": 0.824,
+   "careful_handling": 0.889,
+   "flags_unverified": 1.0
+  },
+  "hi": {
+   "first_sentence_answers": 1.0,
+   "layperson_clear": 1.0,
+   "careful_handling": 1.0,
+   "flags_unverified": null
+  },
+  "hinglish": {
+   "first_sentence_answers": 1.0,
+   "layperson_clear": 0.833,
+   "careful_handling": 1.0,
+   "flags_unverified": null
+  },
+  "de": {
+   "first_sentence_answers": 1.0,
+   "layperson_clear": 1.0,
+   "careful_handling": 1.0,
+   "flags_unverified": null
+  }
+ },
+ "all_deterministic_checks_passed": 24
+}

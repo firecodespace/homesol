@@ -10,7 +10,7 @@ import os
 import re
 from urllib.parse import urlparse
 
-from strands import Agent, tool
+from strands import Agent, ModelRetryStrategy, tool
 from strands.models import BedrockModel
 
 from . import finance, policy
@@ -43,6 +43,16 @@ def _model(model_id: str, effort: str, max_tokens: int) -> BedrockModel:
         max_tokens=max_tokens,
         additional_request_fields=fields,
     )
+
+
+def _retries() -> ModelRetryStrategy:
+    """
+    How long to keep trying when Bedrock throttles a call: three attempts, a few seconds apart.
+
+    Strands' own default waits up to two minutes, far longer than a household will sit in a
+    chat window or a web request will stay open. One is made per agent, as it counts attempts.
+    """
+    return ModelRetryStrategy(max_attempts=3, initial_delay=2, max_delay=4)
 
 
 # ---- the household's figures ---------------------------------------------------------------
@@ -85,7 +95,7 @@ def baseline_finances(survey: dict, system_kw: float | None = None, quoted_cost:
     household = survey.get("household") or {}
     system = survey.get("recommended_system") or {}
     if not system.get("system_kw") or not household.get("monthly_units") or not system.get("monthly_generation_units"):
-        return {"error": "The survey has no recommended system yet. The household must enter their monthly electricity use first."}
+        return {"error": "There is nothing to calculate yet: the household must enter their monthly electricity use, which sets the recommended system."}
     country_code, _, currency = _place(survey)
     size = system_kw or system["system_kw"]
     scale = size / system["system_kw"]
@@ -125,7 +135,7 @@ def _money(amount: float, currency: str) -> str:
         elif abs(whole) >= 100_000:
             text += f" (₹{whole / 100_000:.2f} lakh)"
         return text
-    number = f"{amount:,.2f}" if abs(amount) < 10 and amount != round(amount) else f"{round(amount):,}"
+    number = f"{amount:,.2f}" if abs(amount) < 1 and amount != round(amount) else f"{round(amount):,}"
     return f"{currency} {number}" if currency else f"{number} (currency not recorded)"
 
 
@@ -170,12 +180,10 @@ def _obstruction_line(o: dict, spot: str) -> str:
             f" to the {direction}" if direction else ""
         )
         tall = f"rising {height:g} m above the {spot}" if height is not None else "height not recorded"
-    cause = (
-        f"causes about {round(share * 100)}% of the shade"
-        if share is not None
-        else "how much of the shade it causes was not worked out"
-    )
-    return f"- {o.get('name') or 'Something the survey does not name'}, {where}, {tall}: {cause}."
+    name = o.get("name") or "Something the survey does not name"
+    if share is None:
+        return f"- {name}, {where}, {tall}. How much of the shade it causes was not worked out."
+    return f"- About {round(share * 100)}% of the shade comes from: {name}, {where}, {tall}."
 
 
 def _site_lines(survey: dict) -> list[str]:
@@ -228,10 +236,17 @@ def _site_lines(survey: dict) -> list[str]:
     )
 
     obstructions = survey.get("obstructions") or []
-    ranked = len(obstructions) > 1 and all(o.get("share_of_shade") is not None for o in obstructions)
-    lines.append("WHAT SHADES IT" + (", biggest cause first" if ranked else ""))
+    shares = [o.get("share_of_shade") for o in obstructions]
+    ranked = bool(obstructions) and all(value is not None for value in shares)
+    lines.append(
+        "WHAT CAUSES THAT SHADE"
+        + (", biggest cause first. Each percentage here is a share of the shade, not a share of the sunlight" if ranked else "")
+    )
     if obstructions:
         lines += [_obstruction_line(o, spot) for o in obstructions]
+        rest = 100 - sum(round(value * 100) for value in shares) if ranked else 0
+        if rest >= 1:
+            lines.append(f"- The remaining {rest}% of the shade comes from smaller things and the shape of the {spot} itself, which the survey does not list.")
     elif surface.get("measured") is True:
         lines.append(f"- Nothing that shades the {spot} was found in the survey.")
     else:
@@ -254,13 +269,27 @@ def _site_lines(survey: dict) -> list[str]:
     if mounting == "flush on the slope":
         lines.append(f"- The panels lie flat against the slope of the {spot}" + (f", so they are {angle}, the same as the {spot}." if angle else "."))
     elif mounting == "tilted rows":
-        lines.append("- The panels stand in rows on tilted frames" + (f", {angle}." if angle else "."))
+        lines.append(
+            "- The panels stand in rows on tilted frames"
+            + (f", {angle}" if angle else "")
+            + ", with room left between the rows so that one row does not shade the next in winter."
+        )
     elif angle:
         lines.append(f"- The panels are {angle}.")
+    if fit is not None:
+        lines.append(
+            f"- How homesol placed them: a panel goes only where it fits entirely on the {spot}, clear of its edges and of anything "
+            "standing on it. Positions are filled sunniest first, so the recommended panels sit in the least shaded part."
+        )
     return lines
 
 
-def _money_lines(survey: dict, money: dict) -> list[str]:
+def _money_lines(survey: dict, money: dict, heading: str = "MONEY, for the recommended system", background: bool = True) -> list[str]:
+    """
+    One finance result as labelled sentences. `background` adds what does not change with the
+    system's size or price (who gets the subsidy and where, how extra units are treated); a
+    recalculation leaves it out, because the fact sheet has already said it.
+    """
     country_code, country, currency = _place(survey)
     india = country_code == "IN"
     where = country or "this country"
@@ -268,7 +297,7 @@ def _money_lines(survey: dict, money: dict) -> list[str]:
     def amount(value: float) -> str:
         return _money(value, currency)
 
-    lines = [f"MONEY, for the recommended system (every amount is in {'Indian rupees' if india else currency or 'a currency that was not recorded'})"]
+    lines = [f"{heading} (every amount is in {'Indian rupees' if india else currency or 'a currency that was not recorded'})"]
     priced = money["gross_cost"] is not None
     if not priced:
         lines += [
@@ -300,9 +329,16 @@ def _money_lines(survey: dict, money: dict) -> list[str]:
         scheme = rules.get("scheme") or "the central government scheme"
         lines.append(
             f"- Government subsidy ({scheme}): {amount(money['subsidy'])}."
-            + (f" Who gets it: {rules['applies_to']}" if rules.get("applies_to") else "")
-            + (f" It is applied for at {rules['apply_at']}" if rules.get("apply_at") else "")
+            + (
+                f" Who gets it: {rules['applies_to']} (Net metering means the meter also counts the units the home sends "
+                "to the grid, and they are set against the units it uses.)"
+                if background and rules.get("applies_to")
+                else ""
+            )
+            + (f" It is applied for at {rules['apply_at']}" if background and rules.get("apply_at") else "")
         )
+        if background:
+            lines.append("- State government subsidies on top of this: homesol has NO data on any, so none is counted.")
         if _spot(survey.get("surface") or {}) == "land":
             lines.append(
                 "- This subsidy is for ROOFTOP systems and these panels would stand on the ground, so whether the household "
@@ -342,7 +378,7 @@ def _money_lines(survey: dict, money: dict) -> list[str]:
         )
     household = survey.get("household") or {}
     discom = policy.get_discom(household.get("discom_id") or "") if india else None
-    if discom and discom.get("net_metering", {}).get("summary"):
+    if background and discom and discom.get("net_metering", {}).get("summary"):
         terms = discom["net_metering"]
         lines.append(
             f"- How {discom['name']} treats extra solar units (net metering): {terms['summary']}"
@@ -458,11 +494,13 @@ def clean_answer(text: str) -> str:
         return f"{label} ({url})" if _host(url) in allowed else label
 
     text = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", link, text)
-    text = re.sub(r"\(?https?://[^\s)]+\)?", lambda m: m.group(0) if _host(m.group(0).strip("()")) in allowed else "", text)
+    # A full stop or comma after a link is punctuation, not part of the address.
+    text = re.sub(r"\(?https?://[^\s)]+\)?", lambda m: m.group(0) if _host(m.group(0).strip("()").rstrip(".,;:!?")) in allowed else "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
     text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
     text = re.sub(r"^\s*\*\s+", "- ", text, flags=re.MULTILINE)
     text = text.replace("`", "")
+    text = re.sub(r"ल\s?akhs?\b", "लाख", text)  # "₹10.38 लakh": lakh half turned into Devanagari, seen from both models
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r" +([.,])", r"\1", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
@@ -471,9 +509,14 @@ def clean_answer(text: str) -> str:
 # ---- tools ---------------------------------------------------------------------------------
 
 
-def survey_tools(survey: dict) -> list:
-    """Tools bound to one household's survey."""
-    country_code, country, _ = _place(survey)
+def survey_tools(survey: dict, calculations: list[str] | None = None) -> list:
+    """
+    Tools bound to one household's survey.
+
+    Each recalculation is also appended to `calculations`, word for word, so that it can be
+    handed on unchanged instead of through a model's retelling of it.
+    """
+    country_code, country, currency = _place(survey)
 
     @tool
     def lookup_policy(state: str | None = None) -> str:
@@ -519,27 +562,38 @@ def survey_tools(survey: dict) -> list:
         vendor quote (if they entered one) are taken from their survey. With no arguments this
         returns the figures for the recommended system. Give an argument only for a "what if",
         and only with a number the household actually asked about. Amounts are in the
-        household's currency.
+        household's currency. The result is a list of labelled figures.
 
         Args:
             system_kw: A different system size to price, in kW.
             quoted_cost: A different price for the system before any subsidy, in the household's currency.
         """
         if system_kw is not None and not 0 < system_kw <= 1000:
-            return json.dumps({"error": "system_kw must be a size in kW between 0 and 1000."})
+            return "ERROR: system_kw must be a size in kW between 0 and 1000."
         if quoted_cost is not None and quoted_cost <= 0:
-            return json.dumps({"error": "quoted_cost must be a price above zero."})
+            return "ERROR: quoted_cost must be a price above zero."
         result = baseline_finances(survey, system_kw, quoted_cost)
+        if "error" in result:
+            return f"NOT CALCULATED. {result['error']}"
         recommended = (survey.get("recommended_system") or {}).get("system_kw")
-        if system_kw and recommended and "error" not in result and abs(system_kw - recommended) > 0.01:
+        resized = bool(system_kw and recommended and abs(system_kw - recommended) > 0.01)
+        heading = f"CALCULATION for a {result['system_kw']:g} kW system" + (" (the recommended size)" if not resized else "")
+        if quoted_cost:
+            heading += f" at a price of {_money(quoted_cost, currency)}"
+        lines = _money_lines(survey, result, heading, background=False)
+        if resized:
             largest = largest_system_kw(survey)
             if largest is not None and system_kw > largest + 0.01:
-                result["warning"] = (
-                    f"A {system_kw:g} kW system does NOT fit. The surface holds at most {largest:g} kW where the sun is good. "
-                    "These figures are for a system that cannot be installed there."
+                lines.insert(
+                    1,
+                    f"- WARNING: a {system_kw:g} kW system does NOT fit. The {_spot(survey.get('surface') or {})} holds at most "
+                    f"{largest:g} kW where the sun is good. The figures below are for a system that cannot be installed there.",
                 )
-            result["approximation"] = "Generation for this size is scaled in proportion from the recommended system, so these figures are approximate."
-        return json.dumps(result)
+            lines.append("- Generation for this size is scaled in proportion from the recommended system, so these figures are approximate.")
+        text = "\n".join(lines)
+        if calculations is not None:
+            calculations.append(text)
+        return text
 
     return [lookup_policy, estimate_finances]
 
@@ -550,14 +604,14 @@ SITE_PROMPT = """You are the site analyst inside homesol, a service that helps a
 
 Explain what the survey below means for the question you are asked: where the panels should go and why, how well this surface suits solar, what the listed obstructions do to it, and how far the survey can be trusted.
 
-How homesol lays panels out, so you can explain it: on a flat roof or open land the panels stand in tilted rows facing the sun's side of the sky, lined up with the building, with room between rows so one row does not shade the next in winter. On a slope they lie flat against it. A panel is placed only where it fits entirely on the surface and clear of its edges, and around anything standing on the surface. Positions are filled sunniest first, so the recommended panels sit in the least shaded part.
-
 - Work only from the survey below and use its figures exactly. Do not add measurements, clearances, distances, angles, yields or rules of thumb with numbers from general knowledge: the advisor would pass them on as findings about this property.
+- The percentages listed under what causes the shade are shares of the shade. The share of sunlight lost to shade is a different figure; keep the two apart.
 - Direction words in the survey say where an obstruction stands as seen from the middle of the surface. Panels belong on the side away from the biggest causes of shade; say which side that is.
 - When something was not recorded or not measured, say so and say what that leaves uncertain. An obstruction with no height, a survey estimated from hand marking instead of measured, or an old survey date are worth pointing out when they bear on the question.
 - If the question is not about the site, say that it is outside what the survey covers.
+- Do not name products, organisations or regulations from memory.
 
-Reply in English with compact notes, 110 words at most: the direct answer first, then the survey figures that support it, then anything uncertain. No greeting and no restating the question."""
+Reply in English, in plain text, with at most six short lines: the direct answer first, then the survey figures that support it, then anything uncertain. The household is waiting while you write, and the advisor will reword whatever you send, so leave out greetings, headings, tables, bold and anything not asked for."""
 
 FINANCE_PROMPT = """You are the policy and finance analyst inside homesol, a service that helps a household decide whether to put solar panels on their roof or land. homesol's advisor consults you and then writes the reply to the household. Your reader is the advisor, not the household.
 
@@ -568,27 +622,30 @@ You have two tools, both already tied to this household:
 How to work:
 - Take every rule and rate from lookup_policy, and every money figure from estimate_finances or the facts below. Do not recall rules or rates from memory and do not do the arithmetic yourself: subsidy caps, tariff slabs and yearly settlement make hand calculation come out wrong, and the household will act on these figures.
 - Give estimate_finances only numbers that appear in the advisor's question. A price nobody stated would produce figures for a quote that does not exist. If the question needs a size or a price and gives none, say what is missing instead of assuming one. The household's own quote, when they entered one, is in the facts and is already used.
-- When you need both tools, call them in the same turn.
+- When you need both tools, call them in the same turn. Call lookup_policy only when the question is about a rule or a rate; a recalculation does not need it.
+- The advisor is handed every result of estimate_finances word for word, right under your reply, so do not copy its figures out, explain them, or compare them with the recommended system. After a recalculation your whole reply is normally one line, such as "Calculated for 4 kW." Add a second line only for something the advisor could miss: a warning the calculation raised, or an unverified entry its figures lean on.
 - If a tool returns an error or a warning, report it as it is.
 - When an entry you rely on has "verified": false, say that it still needs checking against the regulator's order, and give its source link.
 - If homesol has no data for the household's distributor, say so and cover only what the data does hold. If the property is outside India, say homesol has no subsidy, tariff or price data there, and do not supply any from memory.
-- If you are asked about something neither tool covers (loans and interest, batteries, panel brands, other investments), say homesol has no data on it. Do not estimate.
+- If you are asked about something neither tool covers (loans and interest, batteries, panel brands, other investments, a state's own subsidy, anything outside India), say homesol has no data on it and stop there. Do not estimate, and do not name agencies, schemes, tax credits or websites from memory, not even as something to look into: a name you recall may no longer exist or apply, and the advisor would pass it on as homesol's. Give only names and links that a tool returned or the facts contain.
 
-Reply in English with compact notes, 110 words at most: the figures asked for, each with what it is, its period (a month, a year, over 25 years) and its currency; then any caveat or unverified entry that bears on them; then the source link if a rule was involved. No greeting, no recommendation, no restating the question."""
+Reply in English, in plain text. For a rule or a rate, at most six short lines: each figure asked for with what it is, its period (a month, a year) and its currency; then any unverified entry it rests on; then the source link. The household is waiting while you write and the advisor rewords whatever you send, so every extra line is delay with no benefit: no greeting, no headings, tables or bold, no advice, nothing that was not asked."""
 
-ADVISOR_PROMPT = """You are homesol's advisor. homesol helps a household decide whether to put solar panels on their roof or land: it builds a measured 3D model of the property, lays out the panels, and works out cost and savings. You answer the household's questions about that plan in a small chat window beside it.
+ADVISOR_INTRO = """You are homesol's advisor. homesol helps a household decide whether to put solar panels on their roof or land: it builds a measured 3D model of the property, lays out the panels, and works out cost and savings. You answer the household's questions about that plan in a small chat window beside it.
 
 The person asking has probably never dealt with solar before and is deciding whether to spend a large sum. They need a straight answer they can follow, and figures they can rely on.
 
-# Where your figures come from
+Below are this household's facts, then how to answer."""
 
-Every number you state must come from the household's facts at the end of this prompt, from a specialist's notes in this conversation, or from the household's own messages. homesol's figures are calculated for this one property, from its survey, its electricity use and the rules where it stands. A number recalled from general knowledge (a typical loan rate, a battery price, a tax credit, what a utility pays for exported power, how long an approval takes) may be wrong for this country, this year or this electricity company, and the household cannot tell which of your numbers were calculated and which were recalled. So:
+ADVISOR_PROMPT = """# Where your figures come from
 
-- When the facts do not cover something, say in one plain sentence that homesol does not have that information, say who would (a bank, a vendor, their electricity company), and add anything from the facts that helps them ask, such as the amount they would be financing. Do not fill the gap with an estimate, a typical range, or a "for example" using numbers of your own: an example with invented numbers reads as an estimate.
-- Do not work out new figures yourself, not even by simple arithmetic. For a different system size or a different price, the finance analyst recalculates properly; subsidy caps, tariff slabs and yearly settlement make mental arithmetic come out wrong. For something homesol cannot calculate at all, such as a loan instalment, say so, even if the household supplies a rate.
+Every number you state must come from the household's facts above, from a specialist's notes in this conversation, or from the household's own messages. homesol's figures are calculated for this one property, from its survey, its electricity use and the rules where it stands. A number recalled from general knowledge (a typical loan rate, a battery price, a tax credit, what a utility pays for exported power, the best tilt for a latitude, how long an approval takes) may be wrong for this country, this year or this electricity company, and the household cannot tell which of your numbers were calculated and which were recalled. So:
+
+- When the facts do not cover something, say in one plain sentence that homesol does not have that information, say who would (a bank, a vendor, their electricity company), and add anything from the facts that helps them ask, such as the amount they would be financing. Do not fill the gap with an estimate, a typical range, or a "for example" using numbers of your own: an example with invented numbers reads as an estimate. Do not hint at what the answer probably is either ("there may well be a tax credit that cuts your cost"): homesol does not know, and that is all you can say.
+- Do not work out new figures yourself, not even the difference between two figures. To compare, state both ("₹6.23 lakh over 25 years, against ₹5.19 lakh for the recommended size") and let the household see the gap; never "₹1 lakh more" or "a year and a half longer". For a different system size or a different price, the finance analyst recalculates properly; subsidy caps, tariff slabs and yearly settlement make mental arithmetic come out wrong. For something homesol cannot calculate at all, such as a loan instalment, say so, even if the household supplies a rate.
 - Keep each figure attached to what it is and to its period. A price is not a saving, and a yearly bill is not a monthly bill. You may round for readability ("about 5 years", "about ₹1.65 lakh"), but not change what a figure means.
 - When the facts say something was not recorded, not measured, not known or not confirmed, tell the household that instead of smoothing it over. When a figure you quote rests on an entry marked unverified or not yet confirmed, say in a few words that it still needs confirming.
-- Give a web link only if it appears in the facts or in a specialist's notes, copied exactly.
+- The same goes for names. Mention an organisation, a scheme, a law or a website only if it is in the facts or in a specialist's notes, and copy a web link exactly. A name recalled from memory may be out of date or wrong for this place, so write "your electricity company" or "your state's energy office" instead of guessing which one it is.
 
 # Staying within what homesol does
 
@@ -602,37 +659,67 @@ If a question has nothing to do with this property's solar plan or its electrici
 
 # Your two specialists
 
-You can consult two specialists. Each consultation takes several seconds while the household waits, so answer straight from the facts whenever they already hold what is needed. That covers most questions about cost, subsidy, savings, payback, system size and what shades the property.
+You can consult two specialists. Each consultation takes several seconds while the household waits, so answer straight from the facts whenever they already hold what is needed. That covers most questions about cost, subsidy, savings, payback, system size and what shades the property. The specialists know nothing beyond homesol's data either: when the facts say homesol has no data on something, tell the household so without consulting anyone.
 
 - policy_finance_analyst: consult it when the household asks "what if" about a different system size or price (it recalculates), or asks for a rule or rate the facts do not give: tariff rates, the detail of subsidy or net-metering terms, or their sources.
-- site_analyst: consult it when the household asks where the panels should go, how shade affects the layout, or how far to trust the survey.
+- site_analyst: consult it when the household asks where the panels should go, how shade affects the layout, or how far to trust the survey, and the facts alone do not settle it.
 
-Ask in English, in one or two specific sentences, and include any number the household gave (the size or price they are asking about) exactly as they gave it. The specialists already have this household's facts. If one question needs both, ask both at once.
+Ask in English, in one specific sentence, and include any number the household gave (the size or price they are asking about) exactly as they gave it. The specialists already have this household's facts, so do not repeat them. If one question needs both, ask both at once.
 
-What comes back is working notes for you, not text for the household. Take what answers the question and say it in your own words. The household should feel they are talking to one advisor, so do not mention specialists, analysts, tools, calculators, a fact sheet, field names or internal codes. If you need to say where something comes from, say "homesol's survey" or "homesol's calculation".
+What comes back is working notes for you, not text for the household. Under the finance analyst's notes you will find each calculation it ran, word for word as homesol's calculator returned it: take your figures from those lines, and if the notes disagree with them, the lines are right. Take what answers the question and say it in your own words. The household should feel they are talking to one advisor, so do not mention specialists, analysts, tools, calculators, a fact sheet, field names or internal codes. If you need to say where something comes from, say "homesol's survey" or "homesol's calculation".
 
 # How to answer
 
 Language. Reply in the language and script of the household's latest message, whatever language the facts, the notes or earlier turns are in:
 - English gets English.
 - Hindi in Devanagari gets Hindi in Devanagari.
-- Hindi typed in Latin letters (Hinglish, such as "kitna kharcha aayega?") gets the same Latin-letter Hindi from the first word to the last. People type this way because it is what they read comfortably; a reply in English, or in Devanagari, may not be understood.
-- Any other language gets that language.
-Words everyone uses stay as they are: solar, panel, subsidy, unit, kW, bill.
+- Hindi typed in Latin letters (Hinglish, such as "kitna kharcha aayega?") gets the same Latin-letter Hindi from the first word to the last, with no Devanagari. People type this way because it is what they read comfortably; a reply in English, or in Devanagari, may not be understood.
+- Any other language gets that language, written the way its speakers write, numbers included.
+Hindi speakers use the words solar, panel, subsidy, unit, system and bill as they are: keep them, in Latin letters in Hinglish and in Devanagari in Hindi (सोलर, पैनल, सब्सिडी, यूनिट). In Devanagari, lakh is लाख and crore is करोड़.
 
-Shape.
-- The first sentence is the answer itself: yes or no with the figure that decides it, the amount asked for, or a plain statement that homesol does not have it. For example: "Yes, solar looks worth it for your home: it should pay for itself in about 5 years." Not a greeting, not the question restated, not "Based on your survey".
+Shape. The chat window is small and the household reads on a phone, so a reply is at most 120 words. Decide what matters most and leave the rest for a follow-up question.
+- Lead with the answer. The first sentence holds what was asked for: yes or no with the figure that decides it; or the amount, rate, time or size asked about; or a plain statement that homesol does not have it. How something works, where a figure comes from and what it depends on all come after. "Yes, solar looks worth it for your home: it should pay for itself in about 5 years." For a what-if: "A 4 kW system would cost you about ₹1.62 lakh after subsidy and pay for itself in about 3.7 years." For a breakdown, the bottom line in one sentence, then its parts: "In short, you would pay about ₹1.53 lakh after subsidy, save about ₹24,900 in the first year, and have your money back in about 5.9 years." Never a greeting, the question restated, or a lead-in such as "Here is the breakdown".
 - Then the two to four facts that matter most for this question, each a short sentence with its figure. Short lines starting with "- " are fine.
-- Then one next step, when there is a useful one.
-- Keep the whole reply under 120 words. Only when the household asks for detail or a full breakdown may it run longer, and then give only what they asked for.
+- Then one next step, when there is a useful one. No closing offer of more help.
+- Only when the household asks for detail or a full breakdown may the reply run past 120 words, and then give only what they asked for.
 
-Plain words. Say "units" for kWh, "your electricity company" for DISCOM or utility, "pays for itself in 5 years" for payback period, "price before subsidy" and "what you pay after subsidy" for gross and net cost. When you need a term such as net metering, say what it is in a few words the first time you use it.
+Plain words. Say "units" for kWh, "your electricity company" for DISCOM or utility, "pays for itself in 5 years" for payback or payback period, "price before subsidy" and "what you pay after subsidy" for gross and net cost, "the rates your electricity company charges" for tariff. Technical terms from the facts, such as net metering, tariff slab or inverter, need a few words of explanation in the same sentence every time a reply uses one: "net metering (your meter also counts the units you send to the grid, and they are set against what you use)".
 
 Plain text. The chat window shows characters exactly as you write them, so no markdown: no asterisks, no headings, no tables, no backticks.
 
 Money. Write amounts in the household's own currency, the way people there write it: Indian rupees as ₹91,500 or ₹1.65 lakh, US dollars as $21,500. Do not convert to another currency.
 
-Earlier turns of the conversation may be included. The facts below are the current ones: if an earlier reply disagrees with them, the household has changed something since, and the facts are right."""
+Earlier turns of the conversation may be included. The facts above are the current ones: if an earlier reply disagrees with them, the household has changed something since, and the facts are right."""
+
+#: Hindi words in Latin letters that are not also English words. Two of them in a message mark it as Hinglish.
+_HINGLISH_WORDS = frozenset(
+    """hai hain hoga hogi honge kya kyun kyon kaise kitna kitni kitne kab kahan kaun mujhe mera meri mere hum hamara
+    aap aapka aapki aapke nahi nahin aur lekin agar toh mein liye chahiye sakta sakti sakte karna karne karun
+    lagega lagegi lagwana lagwa lagwaun milega milegi milta milti paisa paise kharcha bachat chhat saal mahine
+    kuch sahi batao bataiye samjhao wala wali hota hoti raha rahi rahega aayega aayegi yeh ye woh iska kis""".split()
+)
+
+
+def _language_note(message: str) -> str:
+    """
+    A line telling the advisor which script the household is writing in, when code can tell.
+
+    The prompt already says to answer in the household's language, but a short Hinglish question
+    was now and then answered in Devanagari or in English. Naming the script outright stops that.
+    """
+    if re.search(r"[ऀ-ॿ]", message):
+        return (
+            "The household's latest message is in Hindi, in Devanagari script. Write your reply in Hindi, in Devanagari throughout, "
+            "including borrowed words (सोलर, सब्सिडी, सिस्टम) and लाख for lakh. Only kW, web links and proper names stay in Latin letters."
+        )
+    words = re.findall(r"[a-z]+", message.lower())
+    hindi = [word for word in words if word in _HINGLISH_WORDS]
+    if len(set(hindi)) >= 2 and len(hindi) >= 0.2 * len(words):
+        return (
+            "The household's latest message is in Hinglish: Hindi typed in Latin letters. Write your whole reply in Hinglish, "
+            "in Latin letters only, with no Devanagari and not in English."
+        )
+    return ""
 
 
 # ---- the agents ----------------------------------------------------------------------------
@@ -652,49 +739,78 @@ def _turns(history: list[dict] | None) -> list[dict]:
     return turns
 
 
-def build_advisor(survey: dict, history: list[dict] | None = None) -> Agent:
+def _specialists(survey: dict, facts: str) -> list:
+    """The two specialists, as tools the advisor can call. Each call runs a fresh agent, so nothing carries over."""
+    model = _model(SPECIALIST_MODEL_ID, SPECIALIST_EFFORT, max_tokens=2500)
+
+    @tool
+    def site_analyst(question: str) -> str:
+        """Explains the site survey: where the panels should go, how shade affects the layout, how far to trust the survey.
+
+        Args:
+            question: What you need to know, in English, in one or two sentences.
+        """
+        analyst = Agent(
+            name="site_analyst",
+            model=model,
+            system_prompt=f"{SITE_PROMPT}\n\n# The survey\n\n{facts}",
+            callback_handler=None,
+            retry_strategy=_retries(),
+        )
+        return str(analyst(question)).strip()
+
+    @tool
+    def policy_finance_analyst(question: str) -> str:
+        """Recalculates cost, savings and payback for a different system size or price, and looks up subsidy, tariff and net-metering rules with their sources.
+
+        Args:
+            question: What you need to know, in English, in one or two sentences, with any size or price the household gave, exactly as they gave it.
+        """
+        calculations: list[str] = []
+        analyst = Agent(
+            name="policy_finance_analyst",
+            model=model,
+            system_prompt=f"{FINANCE_PROMPT}\n\n# This household's facts\n\n{facts}",
+            tools=survey_tools(survey, calculations),
+            callback_handler=None,
+            retry_strategy=_retries(),
+        )
+        notes = str(analyst(question)).strip()
+        if calculations:
+            # A model retelling a list of figures can get one wrong. The calculator's own words go along, and they win.
+            notes += (
+                "\n\nTHE CALCULATIONS BEHIND THESE NOTES, word for word from homesol's calculator. "
+                "Where the notes and these lines differ, these lines are right.\n\n" + "\n\n".join(calculations)
+            )
+        return notes
+
+    return [site_analyst, policy_finance_analyst]
+
+
+def build_advisor(survey: dict, history: list[dict] | None = None, question: str = "") -> Agent:
     """A fresh advisor for one household, with its two specialist agents attached as tools.
 
     `history` is the conversation so far, as {"role": "user" | "assistant", "text": ...} items.
-    Call the returned agent with the household's next question.
+    Call the returned agent with the household's next question. Pass that question here too, if
+    it is known: it is used only to tell the model which language and script to answer in.
     """
     facts = fact_sheet(survey)
-    specialist = _model(SPECIALIST_MODEL_ID, SPECIALIST_EFFORT, max_tokens=2500)
-    site = Agent(
-        name="site_analyst",
-        model=specialist,
-        system_prompt=f"{SITE_PROMPT}\n\n# The survey\n\n{facts}",
-        callback_handler=None,
-    )
-    money = Agent(
-        name="policy_finance_analyst",
-        model=specialist,
-        system_prompt=f"{FINANCE_PROMPT}\n\n# This household's facts\n\n{facts}",
-        tools=survey_tools(survey),
-        callback_handler=None,
-    )
+    # The facts go before the rules: a model follows what it read last more closely.
+    prompt = f"{ADVISOR_INTRO}\n\n# This household's facts\n\n{facts}\n\n{ADVISOR_PROMPT}"
+    note = _language_note(question)
+    if note:
+        prompt += f"\n\n{note}"
     turns = _turns(history)
     if turns and turns[-1]["role"] == "user":  # the next message is the household's, and two in a row are not allowed
         turns.pop()
     return Agent(
         name="advisor",
         model=_model(ADVISOR_MODEL_ID, ADVISOR_EFFORT, max_tokens=4000),
-        system_prompt=f"{ADVISOR_PROMPT}\n\n# This household's facts\n\n{facts}",
+        system_prompt=prompt,
         messages=[{"role": turn["role"], "content": [{"text": turn["text"]}]} for turn in turns],
         callback_handler=None,
-        tools=[
-            site.as_tool(
-                name="site_analyst",
-                description="Explains the site survey: where the panels should go, how shade affects the layout, how far to trust the survey.",
-            ),
-            money.as_tool(
-                name="policy_finance_analyst",
-                description=(
-                    "Recalculates cost, savings and payback for a different system size or price, and looks up "
-                    "subsidy, tariff and net-metering rules with their sources."
-                ),
-            ),
-        ],
+        tools=_specialists(survey, facts),
+        retry_strategy=_retries(),
     )
 
 
@@ -710,7 +826,7 @@ def answer(question: str, survey: dict, history: list[dict] | None = None) -> st
     turns = _turns(history)
     if turns and turns[-1]["role"] == "user":  # an earlier question that never got its answer
         question = f"{turns.pop()['text']}\n\n{question}"
-    advisor = build_advisor(survey, turns)
+    advisor = build_advisor(survey, turns, question)
     text = clean_answer(str(advisor(question)))
     if not text:  # rare: the model stopped without writing anything
         text = clean_answer(str(advisor("Please give me your answer to that now.")))

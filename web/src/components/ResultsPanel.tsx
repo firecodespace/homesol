@@ -1,14 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Analysis } from "@/lib/site/analysis";
 import { PANEL_LONG_M, PANEL_SHORT_M, PANEL_WATTS } from "@/lib/site/panels";
 import { PERFORMANCE_RATIO } from "@/lib/solar/sizing";
+import { GOOGLE_DC_TO_AC } from "@/lib/solar/yield";
 import { useStore } from "@/lib/store";
 import { clockIn } from "@/lib/time";
 import type { Money } from "@/lib/useMoney";
 import { fmt, Icon, money as cash, Stat } from "./ui";
 
+/** How detailed Google's survey of the place is, in the household's terms. */
+const SURVEY_DETAIL: Record<string, string> = {
+  HIGH: " (aerial survey, its most detailed)",
+  MEDIUM: " (aerial survey, medium detail)",
+  BASE: " (satellite survey, its least detailed)",
+};
 const SQFT_PER_M2 = 10.7639;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
@@ -48,7 +55,11 @@ function Plan({ money, land }: { money: Money; land: boolean }) {
     return (
       <section className="rounded-lg bg-error-container p-4 text-on-error-container">
         <p className="md-title text-on-error-container">
-          No part of this {land ? "land" : "roof"} gets enough sun for a panel.
+          No panel fits here in good sun.
+        </p>
+        <p className="mt-2 text-sm">
+          Either this {land ? "piece of land" : "roof"} is too small or too broken up for a {PANEL_LONG_M.toFixed(1)} m panel once
+          its edges are kept clear, or every spot loses more than a quarter of its sun to shade. The sun map shows which.
         </p>
       </section>
     );
@@ -120,14 +131,24 @@ function Property({ analysis }: { analysis: Analysis }) {
       <Notes>
         {model.measured ? (
           <li>
-            Measured from Google&apos;s 3D survey{model.imageryDate ? `, imagery dated ${model.imageryDate}` : ""}. Anything
-            built or grown since then is not in it.
+            Measured from Google&apos;s 3D survey{model.imageryDate ? `, imagery dated ${model.imageryDate}` : ""}
+            {SURVEY_DETAIL[model.imageryQuality ?? ""] ?? ""}. Anything built or grown since then is not in it.
           </li>
         ) : (
           <li>Estimated from your outline and the number of floors, because no 3D survey exists here.</li>
         )}
+        {s.kind === "sloped_roof" && s.found_by === "outline" && (s.covers ?? 1) < 0.7 && (
+          <li>
+            Your outline takes in more than one slope of the roof. This plan is for the largest, the one facing {s.faces}.
+            To plan another slope, choose “Change property” and tap on it.
+          </li>
+        )}
         {model.measured && model.obstructions.some((o) => o.on_surface) && (
-          <li>Structures standing on it, such as stair rooms and tanks, are left out of the area.</li>
+          <li>
+            {land
+              ? "Things standing on it, such as sheds, walls and trees, are left out of the area."
+              : "Structures standing on it, such as stair rooms and tanks, are left out of the area."}
+          </li>
         )}
       </Notes>
     </Group>
@@ -217,11 +238,14 @@ function Sun({ analysis, zone }: { analysis: Analysis; zone: string }) {
       <Notes>
         {model.measured ? (
           <>
-            <li>The share of full sun is Google&apos;s yearly sunlight measurement, which includes clouds and shade from everything around.</li>
             <li>
-              What shades it, and when, comes from simulating the sun every half hour across the year over the measured heights
-              within about 60 m. That simulation loses {fmt(shade ? shade.lost * 100 : 0)}% of the direct sun, against{" "}
-              {fmt((1 - analysis.meanAccess) * 100)}% in Google&apos;s measurement. Pick “Shadows” on the map to watch it.
+              The share of full sun is Google&apos;s yearly sunlight measurement at each point, set against the best open spot
+              nearby. It counts shade from everything around, and also the {land ? "land" : "roof"}&apos;s own edges and tilt.
+            </li>
+            <li>
+              What shades it, and when, is homesol&apos;s own simulation: the sun&apos;s position every half hour across the year,
+              cast over the measured heights of everything within about 45 m. Counting shadows alone, it finds{" "}
+              {fmt(shade ? shade.lost * 100 : 0)}% of the direct sun lost. Pick “Shadows” on the map to watch it.
             </li>
           </>
         ) : (
@@ -236,6 +260,11 @@ function Panels({ analysis, money }: { analysis: Analysis; money: Money }) {
   const { layout } = analysis;
   const chosen = money.sizing?.panels ?? 0;
   const land = analysis.model.surface.kind.includes("ground");
+  // A slope that faces away from the midday sun: north of east-west in the northern hemisphere, south of it in the southern.
+  const sunSide = analysis.at[1] >= 0 ? 180 : 0;
+  const facesAway = layout.mounting === "flush on the slope" && Math.abs(((layout.facingDeg - sunSide + 540) % 360) - 180) > 100;
+  const good = layout.panels.slice(0, layout.good);
+  const shortfall = good.length ? Math.round((1 - good.reduce((sum, p) => sum + p.access, 0) / good.length) * 100) : 0;
   return (
     <Group
       icon="solar_power"
@@ -264,6 +293,14 @@ function Panels({ analysis, money }: { analysis: Analysis; money: Money }) {
             ? `Panels stand in rows tilted ${layout.tiltDeg}° and facing ${compass(layout.facingDeg)}, ${fmt(layout.rowPitchM, 1)} m from one row to the next so a row does not shade the one behind it in winter.`
             : `Panels lie flat against the slope, tilted ${fmt(layout.tiltDeg)}° and facing ${compass(layout.facingDeg)}.`}
         </li>
+        {facesAway && (
+          <li>
+            This slope faces {compass(layout.facingDeg)}, away from the midday sun.{" "}
+            {shortfall > 0 ? `Panels here get about ${shortfall}% less sun than the best-facing surfaces nearby. ` : ""}
+            If your {land ? "land" : "roof"} has a slope facing {sunSide === 180 ? "south" : "north"}, east or west, choose “Change
+            property” and tap that one to compare.
+          </li>
+        )}
         <li>
           Each panel is {PANEL_WATTS} W and {PANEL_LONG_M.toFixed(2)} m × {PANEL_SHORT_M.toFixed(2)} m. A half-metre strip is kept clear
           along every edge{land ? "" : " and around rooftop structures"}.
@@ -274,9 +311,33 @@ function Panels({ analysis, money }: { analysis: Analysis; money: Money }) {
   );
 }
 
+/** Shown while the property's model is being built; says so when it is taking longer than usual. */
+function Measuring({ loading }: { loading: boolean }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 10_000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <section className="rounded-lg bg-surface p-4">
+      <h2 className="md-title">{loading ? "Measuring your property…" : "Preparing…"}</h2>
+      <p className="md-body mt-2">
+        Building a 3D model from Google&apos;s survey: the surface, everything on and around it, and a year of sun and shadow.
+        This usually takes five to ten seconds.
+      </p>
+      {slow && (
+        <p className="md-body mt-2" role="status">
+          Still working. Google&apos;s survey is slow to answer for this spot; it can take up to half a minute.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function System({ money }: { money: Money }) {
-  const { sizing } = money;
+  const { sizing, basis } = money;
   if (!sizing || sizing.panels === 0) return null;
+  const tiltBonus = basis ? Math.round((basis.annualGain - 1) * 100) : 0;
   const lowest = sizing.monthlyKwh.indexOf(Math.min(...sizing.monthlyKwh));
   const highest = sizing.monthlyKwh.indexOf(Math.max(...sizing.monthlyKwh));
   return (
@@ -288,17 +349,31 @@ function System({ money }: { money: Money }) {
         <Stat label={`Leanest month (${MONTHS[lowest]})`} value={`${fmt(sizing.monthlyKwh[lowest])} units`} />
       </Stats>
       <Notes>
-        <li>
-          Uses 25 years of NASA sunlight records for this spot, the sun each chosen panel position gets, and{" "}
-          {PERFORMANCE_RATIO * 100}% of that reaching your meter after heat, dust and wiring losses.
-        </li>
+        {basis?.measured ? (
+          <li>
+            Uses Google&apos;s measured yearly sunlight at each chosen panel position, with {GOOGLE_DC_TO_AC * 100}% of it
+            reaching your meter after inverter and wiring losses. NASA&apos;s long-term sunlight records share the year out
+            across the months.
+          </li>
+        ) : (
+          <li>
+            Uses NASA&apos;s long-term sunlight records for this spot, the sun each chosen panel position gets, and{" "}
+            {PERFORMANCE_RATIO * 100}% of that reaching your meter after heat, dust and wiring losses.
+          </li>
+        )}
+        {tiltBonus !== 0 && (
+          <li>
+            Tilting the panels towards the sun {tiltBonus > 0 ? "adds" : "costs"} about {Math.abs(tiltBonus)}% over lying them
+            flat, and that is included.
+          </li>
+        )}
         {sizing.limitedBy === "roof" && <li>The sunny area is the limit: a bigger system would not fit.</li>}
       </Notes>
     </Group>
   );
 }
 
-function MoneyResults({ money }: { money: Money }) {
+function MoneyResults({ money, land }: { money: Money; land: boolean }) {
   const { sizing, finance: f, policy, discom } = money;
   const monthlyBill = useStore((s) => s.monthlyBill);
   if (!sizing || sizing.panels === 0) return null;
@@ -352,6 +427,12 @@ function MoneyResults({ money }: { money: Money }) {
                   Source
                 </a>
                 {!netMetering.verified && " (not yet confirmed against the regulator's order)"}
+              </li>
+            )}
+            {land && f.subsidy > 0 && (
+              <li>
+                The subsidy shown is the rooftop scheme&apos;s. Whether panels mounted on the ground at a home qualify is not
+                confirmed; ask on the national portal before counting on it.
               </li>
             )}
             {f.notes.map((note) => (
@@ -429,7 +510,7 @@ export default function ResultsPanel({ analysis, money, zone }: { analysis: Anal
   const land = analysis?.model.surface.kind.includes("ground") ?? false;
 
   return (
-    <aside className="w-full shrink-0 overflow-x-hidden bg-surface-container-low lg:h-full lg:w-[400px] lg:overflow-y-auto">
+    <aside className="w-full shrink-0 overflow-x-hidden bg-surface-container-low lg:h-full lg:w-[340px] lg:overflow-y-auto xl:w-[400px]">
       <div className="space-y-3 p-3">
         {!roof && (
           <section className="rounded-lg bg-surface p-4">
@@ -450,15 +531,7 @@ export default function ResultsPanel({ analysis, money, zone }: { analysis: Anal
             </ul>
           </section>
         )}
-        {roof && !analysis && (
-          <section className="rounded-lg bg-surface p-4">
-            <h2 className="md-title">{loading ? "Measuring your property…" : "Preparing…"}</h2>
-            <p className="md-body mt-2">
-              Building a 3D model from Google&apos;s survey: the surface, everything on and around it, and a year of sun and shadow.
-              This takes a few seconds.
-            </p>
-          </section>
-        )}
+        {roof && !analysis && <Measuring loading={loading} />}
         {analysis && monthlyUnits && <Plan money={money} land={land} />}
         {analysis && <Property analysis={analysis} />}
         {analysis && <Sun analysis={analysis} zone={zone} />}
@@ -467,7 +540,7 @@ export default function ResultsPanel({ analysis, money, zone }: { analysis: Anal
           <p className="md-body px-1">Add your electricity use on the left to see the system you need and what it costs and saves.</p>
         )}
         {analysis && monthlyUnits && <System money={money} />}
-        {analysis && monthlyUnits && <MoneyResults money={money} />}
+        {analysis && monthlyUnits && <MoneyResults money={money} land={land} />}
         <Answers />
         <Shared />
       </div>

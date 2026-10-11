@@ -1,0 +1,46 @@
+advisor us.anthropic.claude-sonnet-4-6 (effort low)  specialists us.anthropic.claude-sonnet-4-6 (effort low)  grader us.anthropic.claude-opus-4-6-v1
+cases 26  answered 26  errored 0
+latency  median 5.43s  p90 12.34s  max 16.04s  mean 7.18s  (median answered from the facts 4.94s, with a specialist 10.28s)
+cases calling each tool: site_analyst 4, policy_finance_analyst 5, lookup_policy 1, estimate_finances 5; none at all 17
+cases passing every deterministic check: 24/26
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl    de
+language_match                   24/26    92%    0    100%    0%  100%  100%
+currency_matches_survey          18/18   100%    8    100%  100%  100%     -
+money_figures_traceable          17/18    94%    8    100%   50%  100%     -
+year_figures_traceable           11/11   100%   15    100%  100%  100%     -
+other_figures_traceable          17/17   100%    9    100%  100%  100%     -
+figures_match_their_label        16/16   100%   10    100%  100%  100%     -
+monthly_yearly_not_confused      10/10   100%   16    100%  100%  100%     -
+no_figures_for_unknowns            2/2   100%   24    100%     -     -     -
+nothing_recalled_by_name           2/2   100%   24    100%     -     -  100%
+links_from_policy_data             5/5   100%   21    100%  100%  100%     -
+required_facts_present           19/19   100%    7    100%  100%  100%  100%
+under_150_words                  25/25   100%    1    100%  100%  100%  100%
+no_markdown                      26/26   100%    0    100%  100%  100%  100%
+no_leaked_reasoning              26/26   100%    0    100%  100%  100%  100%
+no_internal_names                26/26   100%    0    100%  100%  100%  100%
+unverified_data_flagged            2/2   100%   24    100%     -     -     -
+what_if_recalculated               5/5   100%   21    100%     -  100%     -
+tool_arguments_justified           5/5   100%   21    100%     -  100%     -
+ALL OF THE ABOVE               256/259  98.8%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl    de
+first_sentence_answers           21/26    81%    0     82%  100%   67%  100%
+layperson_clear                  23/26    88%    0     88%  100%   83%  100%
+careful_handling                 13/13   100%    0    100%  100%  100%  100%
+flags_unverified                   2/2   100%    0    100%     -     -     -
+ALL OF THE ABOVE                 59/67  88.1%
+
+FAILURES
+- mh-payback-hi [det] language_match: {"expected": "hi", "label": "mixed", "devanagari_share": 0.69, "romanised_hindi_share": 0.0}
+- mh-payback-hi [det] money_figures_traceable: {"untraced": [{"text": "₹10.38", "value": 10.38, "kind": "money", "context": "25 साल में system का खर्च निकालने के बाद कुल ₹10.38 लakh बचेंगे।  Subsidy के"}]}
+- mh-surplus-en [graded] first_sentence_answers: "The first sentence explains the net metering mechanism but does not state what the household gets paid for extra units. It describes offsetting, not the payment/rate for surplus energy."
+- dl-detail-en [graded] first_sentence_answers: "The first sentence is a lead-in ('Here is the full breakdown...') that introduces the answer but does not itself provide any cost or savings figures. The actual breakdown arrives later."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"tariff rates\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-shade-hinglish [graded] first_sentence_answers: "The first sentence describes the neighbor's building position and dimensions but does not directly answer how much shade falls on the roof. The shade figure (33%) comes later."
+- ka-whatif-3kw-hinglish [graded] first_sentence_answers: "The first sentence is a lead-in ('yeh hain:') that introduces figures but does not itself state any cost or payback figure. The actual numbers come later."
+- ka-whatif-3kw-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"grid\", \"generation\"]}"
+- ka-panels-en [graded] first_sentence_answers: "The first sentence addresses shading but does not answer where on the roof the panels should go. It only says there's no spot to avoid, which is not a direct placement answer."
+- un-tariff-en [graded] layperson_clear: "{\"unexplained_terms\": [\"slab rates\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"net-metering\"]}"
+- qh-fair-hi [det] language_match: {"expected": "hi", "label": "mixed", "devanagari_share": 0.631, "romanised_hindi_share": 0.0}

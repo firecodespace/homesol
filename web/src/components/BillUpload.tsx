@@ -57,7 +57,7 @@ export default function BillUpload() {
       />
       <button className="md-tonal w-full" disabled={state === "reading"} onClick={() => input.current?.click()}>
         <Icon name="photo_camera" className="text-[18px]" />
-        {state === "reading" ? "Reading your bill…" : "Read it from a photo of my bill"}
+        {state === "reading" ? "Reading your bill…" : "Read a photo of my bill"}
       </button>
       <p className="md-supporting mt-2">
         The photo is read once and not stored. Your name, address and consumer number are not kept.
