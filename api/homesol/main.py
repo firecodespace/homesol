@@ -11,8 +11,10 @@ from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from . import bill, detect, feedback, finance, google_solar, naming, policy, site, speech, surveys  # noqa: E402
+from . import bill, detect, feedback, finance, google_solar, limits, naming, policy, site, speech, surveys  # noqa: E402
 
+# Routes that cost money (Google's survey, Claude on Bedrock, Amazon Transcribe) carry a rate
+# limit (limits.py); the rest are free to serve and stay open.
 app = FastAPI(title="homesol")
 app.add_middleware(
     CORSMiddleware,
@@ -95,7 +97,7 @@ def post_finance(req: FinanceRequest) -> dict:
         raise HTTPException(422, str(err)) from err
 
 
-@app.post("/transcribe")
+@app.post("/transcribe", dependencies=[limits.limit("speech")])
 async def post_transcribe(req: TranscribeRequest) -> dict:
     try:
         pcm = base64.b64decode(req.audio, validate=True)
@@ -125,7 +127,7 @@ def get_survey(code: str) -> dict:
     return {"survey": survey}
 
 
-@app.post("/site")
+@app.post("/site", dependencies=[limits.limit("measure")])
 def post_site(req: SiteRequest) -> dict:
     """
     A measured model of one property: its surface, obstructions, and height and sunlight rasters.
@@ -145,7 +147,7 @@ def post_site(req: SiteRequest) -> dict:
     raise HTTPException(422, "Give a point or an outline.")
 
 
-@app.post("/site/names")
+@app.post("/site/names", dependencies=[limits.limit("ai")])
 def post_site_names(req: naming.NamingRequest) -> dict:
     """What each measured obstruction is, as seen in the photo. Empty when the model cannot be reached."""
     from botocore.exceptions import BotoCoreError, ClientError
@@ -156,7 +158,7 @@ def post_site_names(req: naming.NamingRequest) -> dict:
         return {"items": [], "reason": str(err)}
 
 
-@app.post("/picture")
+@app.post("/picture", dependencies=[limits.limit("measure")])
 def post_picture(req: RoofAtRequest) -> dict:
     """Google's photo of the area around a point, so taps land on the imagery the measurements use."""
     try:
@@ -167,7 +169,7 @@ def post_picture(req: RoofAtRequest) -> dict:
         return {"available": False, "reason": f"Google's data could not be read: {err}"}
 
 
-@app.post("/bill")
+@app.post("/bill", dependencies=[limits.limit("ai")])
 def post_bill(req: bill.BillRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 
@@ -179,7 +181,7 @@ def post_bill(req: bill.BillRequest) -> dict:
         raise HTTPException(502, f"The bill reader is unavailable: {err}") from err
 
 
-@app.post("/detect")
+@app.post("/detect", dependencies=[limits.limit("ai")])
 def post_detect(req: detect.DetectRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 
@@ -204,7 +206,7 @@ def get_feedback_summary() -> dict:
     return feedback.summary()
 
 
-@app.post("/advise")
+@app.post("/advise", dependencies=[limits.limit("ai")])
 def post_advise(req: AdviseRequest) -> dict:
     from botocore.exceptions import BotoCoreError, ClientError
 

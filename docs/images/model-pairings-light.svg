@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="376" viewBox="0 0 860 376" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title>Median answer time and automatic checks passed for five advisor model pairings</title>
+<text x="0" y="24" font-size="17" font-weight="600" fill="#1f2328">Five model pairings, the same 26 advisor questions</text>
+<text x="0" y="46" font-size="13" fill="#59636e">Median time to answer. Checks passed were within a percentage point of each other; the choice rested on the kind of failures.</text>
+<text x="0" y="78" font-size="12" font-weight="600" fill="#59636e">Advisor + specialists</text>
+<text x="720" y="78" font-size="12" font-weight="600" fill="#59636e">Checks passed</text>
+<line x1="230.0" y1="88" x2="230.0" y2="304" stroke="#d1d9e0" stroke-width="1"/>
+<text x="230.0" y="322" font-size="12" text-anchor="middle" fill="#59636e">0 s</text>
+<line x1="359.2" y1="88" x2="359.2" y2="304" stroke="#d1d9e0" stroke-width="1"/>
+<text x="359.2" y="322" font-size="12" text-anchor="middle" fill="#59636e">4 s</text>
+<line x1="488.5" y1="88" x2="488.5" y2="304" stroke="#d1d9e0" stroke-width="1"/>
+<text x="488.5" y="322" font-size="12" text-anchor="middle" fill="#59636e">8 s</text>
+<line x1="617.7" y1="88" x2="617.7" y2="304" stroke="#d1d9e0" stroke-width="1"/>
+<text x="617.7" y="322" font-size="12" text-anchor="middle" fill="#59636e">12 s</text>
+<text x="0" y="106.5" font-size="13" font-weight="400" fill="#1f2328">Nova Pro + Nova Pro</text>
+<path d="M230.0,92.0 H330.7 Q334.7,92.0 334.7,96.0 V108.0 Q334.7,112.0 330.7,112.0 H230.0 Z" fill="#cf9446"><title>Nova Pro + Nova Pro: median 3.2 s</title></path>
+<text x="342.7" y="106.5" font-size="13" fill="#1f2328">3.2 s</text>
+<text x="720" y="106.5" font-size="13" fill="#1f2328" style="font-variant-numeric:tabular-nums">98.3%  <tspan fill="#59636e">(231/235)</tspan></text>
+<text x="0" y="150.5" font-size="13" font-weight="400" fill="#1f2328">Sonnet 4.6 + Sonnet 4.6</text>
+<path d="M230.0,136.0 H401.4 Q405.4,136.0 405.4,140.0 V152.0 Q405.4,156.0 401.4,156.0 H230.0 Z" fill="#cf9446"><title>Sonnet 4.6 + Sonnet 4.6: median 5.4 s</title></path>
+<text x="413.4" y="150.5" font-size="13" fill="#1f2328">5.4 s</text>
+<text x="720" y="150.5" font-size="13" fill="#1f2328" style="font-variant-numeric:tabular-nums">98.8%  <tspan fill="#59636e">(256/259)</tspan></text>
+<text x="0" y="194.5" font-size="13" font-weight="400" fill="#1f2328">Opus 4.6 + Haiku 4.5</text>
+<path d="M230.0,180.0 H531.6 Q535.6,180.0 535.6,184.0 V196.0 Q535.6,200.0 531.6,200.0 H230.0 Z" fill="#cf9446"><title>Opus 4.6 + Haiku 4.5: median 9.5 s</title></path>
+<text x="543.6" y="194.5" font-size="13" fill="#1f2328">9.5 s</text>
+<text x="720" y="194.5" font-size="13" fill="#1f2328" style="font-variant-numeric:tabular-nums">99.2%  <tspan fill="#59636e">(264/266)</tspan></text>
+<text x="0" y="238.5" font-size="13" font-weight="600" fill="#1f2328">Opus 4.6 + Sonnet 4.6  (chosen)</text>
+<path d="M230.0,224.0 H567.2 Q571.2,224.0 571.2,228.0 V240.0 Q571.2,244.0 567.2,244.0 H230.0 Z" fill="#855300"><title>Opus 4.6 + Sonnet 4.6: median 10.6 s</title></path>
+<text x="579.2" y="238.5" font-size="13" fill="#1f2328">10.6 s</text>
+<text x="720" y="238.5" font-size="13" fill="#1f2328" style="font-variant-numeric:tabular-nums">99.2%  <tspan fill="#59636e">(262/264)</tspan></text>
+<text x="0" y="282.5" font-size="13" font-weight="400" fill="#1f2328">Opus 4.6 + Opus 4.6</text>
+<path d="M230.0,268.0 H574.6 Q578.6,268.0 578.6,272.0 V284.0 Q578.6,288.0 574.6,288.0 H230.0 Z" fill="#cf9446"><title>Opus 4.6 + Opus 4.6: median 10.8 s</title></path>
+<text x="586.6" y="282.5" font-size="13" fill="#1f2328">10.8 s</text>
+<text x="720" y="282.5" font-size="13" fill="#1f2328" style="font-variant-numeric:tabular-nums">99.3%  <tspan fill="#59636e">(267/269)</tspan></text>
+<text x="0" y="368" font-size="11" fill="#59636e">Source: api/evals/runs/20261011-compare-*/summary.json. One run per question, on questions the prompts were tuned on.</text>
+</svg>

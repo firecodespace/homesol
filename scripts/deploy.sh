@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Redeploy homesol: the API to AWS Lambda and the web app to Amplify Hosting.
-# One-time resources (IAM role, function, function URL, Amplify app, DynamoDB
-# table) already exist; this only ships new code.
+# One-time resources (IAM role, function, function URL, Amplify app, survey
+# tables) already exist; this ships new code, and creates the rate-limit table
+# and its permission the first time it runs.
 set -euo pipefail
 
 REGION="${AWS_REGION:-us-east-1}"
@@ -30,32 +31,53 @@ aws lambda update-function-code --region "${REGION}" --function-name "${FUNCTION
   --s3-bucket "${BUCKET}" --s3-key api.zip --query 'LastUpdateStatus' --output text
 aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
 
+# Rate limits (api/homesol/limits.py) count requests in their own DynamoDB table, shared by every
+# instance of the function; counters delete themselves through the table's expiry. Without the
+# table or the permission, the function still limits, but each instance counts on its own.
+echo "== Rate-limit table"
+LIMITS_TABLE="homesol-limits"
+if ! aws dynamodb describe-table --region "${REGION}" --table-name "${LIMITS_TABLE}" >/dev/null 2>&1; then
+  aws dynamodb create-table --region "${REGION}" --table-name "${LIMITS_TABLE}" \
+    --attribute-definitions AttributeName=id,AttributeType=S --key-schema AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST --query 'TableDescription.TableStatus' --output text
+  aws dynamodb wait table-exists --region "${REGION}" --table-name "${LIMITS_TABLE}"
+  aws dynamodb update-time-to-live --region "${REGION}" --table-name "${LIMITS_TABLE}" \
+    --time-to-live-specification Enabled=true,AttributeName=expires --query 'TimeToLiveSpecification.Enabled' --output text
+fi
+ROLE="$(aws lambda get-function-configuration --region "${REGION}" --function-name "${FUNCTION}" --query 'Role' --output text)"
+aws iam put-role-policy --role-name "${ROLE##*/}" --policy-name homesol-rate-limits --policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"dynamodb:UpdateItem\",\"Resource\":\"arn:aws:dynamodb:${REGION}:${ACCOUNT}:table/${LIMITS_TABLE}\"}]}" \
+  || echo "WARNING: could not let the function use ${LIMITS_TABLE}; limits will count per instance."
+
 # Bring the function's settings in line with api/.env, keeping everything else it has: the Google
-# Maps key, and which Bedrock model does which job. A model variable missing from api/.env is
-# removed from the function, so the default in the code applies in both places.
-if [[ -f "${ROOT}/api/.env" ]]; then
+# Maps key, which Bedrock model does which job, and any rate-limit overrides. A model variable
+# missing from api/.env is removed from the function, so the default in the code applies in both
+# places; with no api/.env, the function's settings are left as they are. The rate-limit table is
+# always set.
 echo "== Syncing settings to the function"
 ENVIRONMENT="$(aws lambda get-function-configuration --region "${REGION}" --function-name "${FUNCTION}" --query 'Environment.Variables' --output json \
-  | ENV_FILE="${ROOT}/api/.env" python3 -c '
+  | ENV_FILE="${ROOT}/api/.env" LIMITS_TABLE="${LIMITS_TABLE}" python3 -c '
 import json, os, sys
 live = json.load(sys.stdin) or {}
 local = {}
-for line in open(os.environ["ENV_FILE"]):
-    name, sep, value = line.strip().partition("=")
-    if sep and value and not name.startswith("#"):
-        local[name] = value
-if "GOOGLE_MAPS_API_KEY" in local:
-    live["GOOGLE_MAPS_API_KEY"] = local["GOOGLE_MAPS_API_KEY"]
+if os.path.exists(os.environ["ENV_FILE"]):
+    for line in open(os.environ["ENV_FILE"]):
+        name, sep, value = line.strip().partition("=")
+        if sep and value and not name.startswith("#"):
+            local[name] = value
+for name in ("GOOGLE_MAPS_API_KEY", "RATE_LIMITS", "RATE_LIMIT_SALT"):
+    if name in local:
+        live[name] = local[name]
 for name in ("BEDROCK_AGENT_MODEL_ID", "BEDROCK_SPECIALIST_MODEL_ID", "BEDROCK_VISION_MODEL_ID"):
     if name in local:
         live[name] = local[name]
-    else:
+    elif local:
         live.pop(name, None)
+live["RATE_LIMIT_TABLE"] = os.environ["LIMITS_TABLE"]
 print(json.dumps({"Variables": live}))')"
 aws lambda update-function-configuration --region "${REGION}" --function-name "${FUNCTION}" \
   --environment "${ENVIRONMENT}" --query 'LastUpdateStatus' --output text
 aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
-fi
 
 API_URL="$(aws lambda get-function-url-config --region "${REGION}" --function-name "${FUNCTION}" --query 'FunctionUrl' --output text)"
 API_URL="${API_URL%/}"

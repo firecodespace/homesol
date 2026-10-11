@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ChatTurn, Picture, Place } from "./api";
+import type { ChatTurn, Picture, Place, RateLimit } from "./api";
 import { reportVerdict } from "./feedback";
 import type { LngLat } from "./geo/local";
 import type { ImageryInfo } from "./imagery";
@@ -56,8 +56,10 @@ interface State {
   pick: { state: "finding"; point: LngLat } | { state: "failed"; message: string } | null;
   /** The measured model of the property, where Google has surveyed it. */
   site: SiteModel | null;
-  /** Whether the measured model is being fetched, or why there is none. */
-  siteStatus: { state: "idle" | "loading" } | { state: "unavailable"; reason: string };
+  /** Whether the measured model is being fetched, or why there is none: Google has no survey, or a rate limit. */
+  siteStatus: { state: "idle" | "loading" } | { state: "unavailable" | "limited"; reason: string };
+  /** The latest rate limit the API reported, and when it lifts (ms since epoch); not tied to a property. */
+  limit: { info: RateLimit; until: number } | null;
   /** What each measured obstruction is, by obstruction id, once the vision model has looked. */
   names: Record<number, ObstructionName>;
   /** Google's photo of the area, shown under the outline so both line up. */
@@ -146,6 +148,7 @@ export const useStore = create<State>()(
       ...NO_PROPERTY,
       mode: "idle",
       hydrated: false,
+      limit: null,
       scanOpen: false,
       view: "sun",
       showPanels: true,

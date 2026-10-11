@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { fetchSite, loadSurvey } from "@/lib/api";
+import { fetchSite, loadSurvey, onRateLimit, RateLimitError } from "@/lib/api";
 import { centroid } from "@/lib/geo/local";
 import { analyse } from "@/lib/site/analysis";
 import { decodeSite, modelFromCells } from "@/lib/site/model";
@@ -14,6 +14,7 @@ import { zonedDate, zoneAt } from "@/lib/time";
 import { useMoney } from "@/lib/useMoney";
 import HorizonScan from "./HorizonScan";
 import MapControls from "./MapControls";
+import RateLimitBanner from "./RateLimitBanner";
 import ResultsPanel from "./ResultsPanel";
 import ToolsPanel from "./ToolsPanel";
 
@@ -50,6 +51,12 @@ export default function Planner() {
     });
   }, []);
 
+  // Any request refused for a rate limit is shown in one banner, whichever tool made it.
+  useEffect(
+    () => onRateLimit((info) => useStore.setState({ limit: { info, until: Date.now() + info.retryAfterS * 1000 } })),
+    [],
+  );
+
   // An outline drawn by hand, or restored from a save, has no measured model yet: fetch one.
   useEffect(() => {
     if (!hydrated || !roof) return;
@@ -72,8 +79,10 @@ export default function Planner() {
         });
       })
       .catch((err: Error) => {
-        if (err.name === "AbortError") return;
-        useStore.setState({ siteStatus: { state: "unavailable", reason: "The measuring service could not be reached." } });
+        if (err.name === "AbortError" || controller.signal.aborted) return;
+        // A rate limit is not "no survey here": the property can be measured once it lifts.
+        if (err instanceof RateLimitError) useStore.setState({ siteStatus: { state: "limited", reason: err.message } });
+        else useStore.setState({ siteStatus: { state: "unavailable", reason: "The measuring service could not be reached." } });
       });
     return () => controller.abort();
   }, [hydrated, roof]);
@@ -139,6 +148,7 @@ export default function Planner() {
         </h1>
         <p className="md-body hidden sm:block">Everything you need to decide on solar, for your own property.</p>
       </header>
+      <RateLimitBanner />
       {/* Tools on the left, map in the middle, results on the right. On small screens they stack. */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <ToolsPanel analysis={analysis} money={money} />

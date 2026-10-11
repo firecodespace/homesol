@@ -82,6 +82,19 @@ function PropertyTool() {
           </div>
         </div>
       )}
+      {siteStatus.state === "limited" && (
+        <div className="rounded-md bg-error-container p-3 text-sm text-on-error-container">
+          <p>Measuring is paused for now. {siteStatus.reason}</p>
+          <button
+            className="md-text mt-2 h-8 px-2 text-on-error-container"
+            // A fresh copy of the outline makes the page measure it again.
+            onClick={() => useStore.setState((s) => ({ roof: s.roof && [...s.roof], siteStatus: { state: "idle" } }))}
+          >
+            <Icon name="refresh" className="text-[18px]" />
+            Try again
+          </button>
+        </div>
+      )}
       {siteStatus.state === "unavailable" && (
         <>
           <p className="rounded-md bg-secondary-container p-3 text-sm text-on-secondary-container">

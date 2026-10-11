@@ -1,0 +1,16 @@
+# Editor and assistant settings stay on each machine
+.claude/
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Keys never go in the repository (api/.env, web/.env.local)
+.env
+.env.*
+
+# Python caches anywhere
+__pycache__/
+*.pyc

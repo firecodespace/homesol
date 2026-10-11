@@ -25,6 +25,7 @@ Last updated 11 October 2026.
 17. [Screen layout](#17-screen-layout)
 18. [Working anywhere in the world](#18-working-anywhere-in-the-world)
 19. [Deployment and configuration](#19-deployment-and-configuration)
+20. [Rate limits](#20-rate-limits)
 
 ---
 
@@ -550,7 +551,7 @@ Final run, 11 October 2026, Opus advisor with Sonnet specialists (`api/evals/run
 - Languages other than English, Hindi and Hinglish are barely tested (one German case).
 - Speed was measured from one laptop with four conversations at once and no throttling.
 - No memory between sessions; the conversation is lost on reload.
-- Anyone with the API address can call it; there is no login or rate limit, only a cap of 10 simultaneous requests.
+- Anyone with the API address can call it; there is no login. Each visitor gets 30 AI answers and readings an hour, and all visitors together 600 a day (section 20).
 
 **Troubleshooting.**
 - *Wrong figure in an answer:* print the fact sheet for that survey first (`agents.fact_sheet(survey)`); if the figure is right there, it is a model slip, and the eval's traceability checks are the place to look.
@@ -635,9 +636,10 @@ Tools appear as they become relevant: electricity after a property is chosen, co
 | API | AWS Lambda `homesol-api` (Python 3.13, arm64) behind a function URL, running the FastAPI app through Mangum |
 | Saved surveys | DynamoDB `homesol-surveys` |
 | Detection feedback | DynamoDB `homesol-feedback` |
+| Rate-limit counters | DynamoDB `homesol-limits` (section 20) |
 | Deploy package | S3 `homesol-deploy-<account>` |
 
-**To deploy:** `scripts/deploy.sh` from the repository root, with the AWS CLI logged in. It packages the API, updates the Lambda, brings the Lambda's settings in line with `api/.env` (the Google key and the three model variables; a model variable missing from `api/.env` is removed from the Lambda so the default in the code applies), builds the website against the API's address, and publishes it.
+**To deploy:** `scripts/deploy.sh` from the repository root, with the AWS CLI logged in. It packages the API, updates the Lambda, creates the rate-limit table and the function's permission to use it if they are missing, brings the Lambda's settings in line with `api/.env` (the Google key, the three model variables and any rate-limit overrides; a model variable missing from `api/.env` is removed from the Lambda so the default in the code applies; with no `api/.env` the settings are left as they are), sets `RATE_LIMIT_TABLE`, builds the website against the API's address, and publishes it.
 
 **Settings.**
 | Setting | Where | Purpose |
@@ -647,16 +649,64 @@ Tools appear as they become relevant: electricity after a property is chosen, co
 | `BEDROCK_AGENT_MODEL_ID`, `BEDROCK_SPECIALIST_MODEL_ID` | Lambda environment, `api/.env` | Advisor and its specialists (section 14) |
 | `BEDROCK_AGENT_EFFORT`, `BEDROCK_SPECIALIST_EFFORT` | Optional, same places | Thinking effort for each; default `low` |
 | `ALLOWED_ORIGINS` | Lambda environment | Which websites may call the API |
+| `RATE_LIMIT_TABLE` | Set by the deploy script | DynamoDB table for rate-limit counters; unset, each process counts in memory |
+| `RATE_LIMITS` | Optional, `api/.env` or Lambda environment | Changes allowances without a code change (section 20) |
+| `RATE_LIMIT_SALT` | Optional, same places | Salt for hashing visitors' addresses; default `homesol` |
 | `AWS_BEARER_TOKEN_BEDROCK` | `api/.env` only | Bedrock access when running locally; the Lambda uses its role |
 | `NEXT_PUBLIC_API_URL` | Set by the deploy script at build time | API address the website calls |
 
 **Models on this account.** Claude Opus 4.6, Sonnet 4.6, Opus 4.5, Sonnet 4.5 and Haiku 4.5 respond through Bedrock in `us-east-1`. The Claude 5 family returns "not available for this account". `models.py` already handles models that refuse a forced tool call, so switching is a change of environment variable once access is granted.
 
 **Limits and risks.**
-- The API is public: no login and no rate limit, capped at 10 simultaneous requests. A budget alert on the AWS account is the backstop.
+- The API is public with no login. Rate limits (section 20) cap what each visitor and everyone together can spend; the Lambda also takes at most 10 requests at once. A budget alert on the AWS account is the last backstop.
 - Each property costs one or two Google Solar requests, one naming call and the advisor's calls.
 - The Lambda package is close to the 250 MB limit, which is why no image-codec library is included.
 - A first request after idle time is slower while the Lambda starts.
 - Region is `us-east-1`. Property locations and bill photos are processed there.
 
-**Tests.** `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101) and `pnpm test` in `web/` (58). None calls a paid service. Running the advisor's test set itself (`api/evals/run.py`, section 14) does.
+**Tests.** `api/.venv/bin/python -m pytest api/tests` (50), `api/.venv/bin/python -m pytest api/evals` (101) and `pnpm test` in `web/` (62). None calls a paid service. Running the advisor's test set itself (`api/evals/run.py`, section 14) does.
+
+---
+
+## 20. Rate limits
+
+**What it does.** Caps how much each visitor, and everyone together, can spend on the paid services, and says plainly on screen when a cap is reached. Code: `api/homesol/limits.py`, `web/src/lib/api.ts`, `web/src/components/RateLimitBanner.tsx`.
+
+**Allowances** (`KINDS` in `limits.py`).
+| Allowance | Routes | Paid service | Each visitor, per hour | All visitors, per day (UTC) |
+|---|---|---|---|---|
+| `measure`, live measurements | `/site`, `/picture` | Google Solar API | 60 | 1,500 |
+| `ai`, AI answers and readings | `/site/names`, `/bill`, `/detect`, `/advise` | Claude on Bedrock | 30 | 600 |
+| `speech`, voice questions | `/transcribe` | Amazon Transcribe | 30 | 500 |
+
+`/finance`, `/policy`, `/surveys`, `/feedback` and `/health` are not limited. Shadows, panel layout and sizing run in the browser and call nothing. A test pins which routes are limited, so removing a limit, or limiting a free route, fails it; a new paid route has to be added to it by hand.
+
+**How it works.**
+1. Each limited route has a FastAPI dependency (`limits.limit("ai")`) that runs before the route.
+2. The visitor is a salted SHA-256 of the caller's address, cut to 20 characters. On Lambda, Mangum sets the caller's address from the function URL's `sourceIp`, which the caller cannot forge. `X-Forwarded-For` is not read, because a caller can put anything there.
+3. Two counters are added to: the visitor's for this clock hour (`ai#v#<visitor>#<hour>`), then everyone's for this UTC day (`ai#all#<day>`). Both are fixed windows: an allowance comes back whole at the top of the hour, and the daily one at midnight UTC.
+4. With `RATE_LIMIT_TABLE` set, counters are DynamoDB items incremented atomically (`UpdateItem ADD`), so every Lambda instance sees the same count. Each item carries an `expires` time five minutes after its window and DynamoDB deletes it. Unset, or if DynamoDB fails, the process counts in memory: limits still hold, per instance.
+5. Over an allowance, the API answers HTTP 429 with a `Retry-After` header and a `detail` object: `message` (a sentence for the visitor), `id`, `scope` (`visitor` or `everyone`), `kind`, `limit`, `window` and `retry_after` in seconds. A request refused for the visitor's hourly allowance still counts towards that hour; it does not count towards the daily one.
+
+**What the visitor sees.** Every API call goes through `call()` in `api.ts`, which turns a 429 into a `RateLimitError` and tells the page. A banner under the header then says which allowance ran out ("You've reached this hour's limit" or "homesol has reached today's limit"), counts down to when it comes back with the local clock time, explains the allowance, and says what still works: measuring, shadows, layout and money figures without AI; typing instead of speaking; a property already measured keeps working while measuring is paused. It clears itself when the time is up and can be dismissed. Where a measurement was refused, the property card and the results panel say "Measuring is paused" with the reason, and the card has a "Try again" button. A 429 that is not homesol's (the Lambda's own cap of 10 requests at once) reads "homesol is busy right now", waiting as long as its `Retry-After` asks or a minute.
+
+**Settings.**
+| Setting | Purpose |
+|---|---|
+| `RATE_LIMITS` | JSON of `[hourly, daily]` by allowance, e.g. `{"ai": [20, 400]}`. Read at start-up |
+| `RATE_LIMIT_TABLE` | The counters' table; the deploy script creates `homesol-limits` (key `id`, on-demand, expiry on `expires`) and sets this |
+| `RATE_LIMIT_SALT` | Salt for the visitor hash; change it to make old counters unlinkable |
+
+**Tested on.** Unit tests (`api/tests/test_limits.py`, `web/src/lib/limits.test.ts`) cover the hourly and daily allowances, the 429's content, a second visitor unaffected, the allowance returning the next hour, a forged `X-Forwarded-For`, the in-memory fallback, the hash, and the website's reading of both kinds of 429. Run end to end in a browser against a local API with allowances turned down: the banner, countdown, paused-measuring card and "Try again" all appeared as described. **Not yet run against DynamoDB**: the table is created on the next deploy.
+
+**Limits.**
+- **Many people behind one address share an allowance**: an office, a college network, or a mobile carrier's shared address. 60 measurements and 30 AI answers an hour is generous for one person and may pinch a classroom.
+- **One person with many addresses gets many allowances.** The daily cap for everyone is what bounds the cost; reaching it closes the paid features for everyone until midnight UTC.
+- Fixed windows allow up to twice an hourly allowance across the turn of an hour.
+- The memory fallback counts per Lambda instance; with up to 10 instances, the effective limit is up to ten times higher while DynamoDB is unavailable.
+- Each limited request costs one or two small DynamoDB writes.
+
+**Troubleshooting.**
+- *Everyone is limited at once:* the daily cap was reached. Look at today's `<kind>#all#<day>` item in `homesol-limits` (day = Unix time ÷ 86,400); raise the cap with `RATE_LIMITS` if the traffic is real.
+- *Limits seem to reset unexpectedly, or "rate limit store unavailable" in the logs:* the function cannot write to the table. Check `RATE_LIMIT_TABLE` and the role's `homesol-rate-limits` policy (`dynamodb:UpdateItem` on the table); rerun `scripts/deploy.sh`.
+- *Testing the banner locally:* start the API with `RATE_LIMITS='{"measure":[3,100],"ai":[1,100],"speech":[1,100]}'`.

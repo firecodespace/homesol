@@ -334,6 +334,20 @@ function Measuring({ loading }: { loading: boolean }) {
   );
 }
 
+/** Shown instead of the results when measuring was refused for a rate limit. */
+function Limited({ reason }: { reason: string }) {
+  return (
+    <section className="rounded-lg bg-error-container p-4 text-on-error-container">
+      <div className="flex items-center gap-3">
+        <Icon name="hourglass_top" />
+        <h2 className="md-title text-on-error-container">Measuring is paused</h2>
+      </div>
+      <p className="mt-2 text-sm">{reason}</p>
+      <p className="mt-2 text-sm">Choose “Try again” on the left once the time is up.</p>
+    </section>
+  );
+}
+
 function System({ money }: { money: Money }) {
   const { sizing, basis } = money;
   if (!sizing || sizing.panels === 0) return null;
@@ -507,6 +521,7 @@ export default function ResultsPanel({ analysis, money, zone }: { analysis: Anal
   const roof = useStore((s) => s.roof);
   const monthlyUnits = useStore((s) => s.monthlyUnits);
   const loading = useStore((s) => s.siteStatus.state === "loading");
+  const limited = useStore((s) => (s.siteStatus.state === "limited" ? s.siteStatus.reason : null));
   const land = analysis?.model.surface.kind.includes("ground") ?? false;
 
   return (
@@ -531,7 +546,7 @@ export default function ResultsPanel({ analysis, money, zone }: { analysis: Anal
             </ul>
           </section>
         )}
-        {roof && !analysis && <Measuring loading={loading} />}
+        {roof && !analysis && (limited ? <Limited reason={limited} /> : <Measuring loading={loading} />)}
         {analysis && monthlyUnits && <Plan money={money} land={land} />}
         {analysis && <Property analysis={analysis} />}
         {analysis && <Sun analysis={analysis} zone={zone} />}

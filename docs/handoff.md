@@ -20,14 +20,15 @@ The owner's bar is "a winning project": every system precise, on real data, in a
 | | |
 |---|---|
 | Live site | https://main.d37cbq8cojkdix.amplifyapp.com |
-| Live API | AWS Lambda `homesol-api`, function URL `https://bo2upqcl6beeqtjtyhrsvnn7tu0hyqee.lambda-url.us-east-1.on.aws` (public, no login, 10 at once, 120 s timeout) |
-| Storage | DynamoDB `homesol-surveys`, `homesol-feedback`, region `us-east-1` |
+| Live API | AWS Lambda `homesol-api`, function URL `https://bo2upqcl6beeqtjtyhrsvnn7tu0hyqee.lambda-url.us-east-1.on.aws` (public, no login, rate-limited per visitor and per day, 10 at once, 120 s timeout) |
+| Storage | DynamoDB `homesol-surveys`, `homesol-feedback`, `homesol-limits` (made by the next deploy), region `us-east-1` |
 | Repository | GitHub `firecodespace/homesol`, branch `main` |
 | Website code | `web/` (Next.js 16 static export, React 19, MapLibre, Tailwind 4, zustand) |
 | API code | `api/homesol/` (FastAPI, Strands Agents, numpy) |
 | Deploy | `scripts/deploy.sh` (needs the AWS CLI logged in and `api/.env`) |
+| Demo video | `demo/`: script, shot list and the tools that recorded and assembled it. The video files are not in git |
 
-**The live site and API run the code described here**, deployed 11 October 2026. **That code is not yet committed.** The working tree on the owner's laptop holds 30 changed files and several new ones on top of commit `0e59f8c`. Until the owner commits and pushes, a fresh clone is a day behind and is missing most of what this document describes.
+**Everything described here is committed on `main`.** The live site and API were last deployed on 11 October 2026, before the rate limits (section 20 of the reference). Until `scripts/deploy.sh` is run again, the live API has no rate limits and the website has no limit banner; the script also creates the `homesol-limits` table and the permission to use it.
 
 **A cloud session will not have** `api/.env` (Bedrock key, Google Maps key) or AWS credentials. Without them it can read, edit and run every unit test, but it cannot call Google's Solar API, call Bedrock, run the advisor test set, or deploy. `web/AGENTS.md` warns that this Next.js version differs from older ones; read the guides it points to before changing framework code.
 
@@ -52,8 +53,9 @@ Checked on real data in a browser unless stated otherwise.
 | Advisor (Opus 4.6 + Sonnet 4.6 specialists) | 81-case test set: 80 pass every automatic check; live API answered in English and Hindi; asked through the live website |
 | Layout | No overflow or wrapped buttons at 375, 1024, 1280 and 1440 px |
 | Live deployment | `/site`, `/site/names`, `/bill`, `/finance`, `/advise` answered correctly from Lambda; the site loaded and ran end to end |
+| Rate limits | Unit tests on both sides; in a browser against a local API with allowances turned down: banner, countdown, paused measuring and "Try again" |
 
-Tests, none of which calls a paid service: `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101), `pnpm test` in `web/` (58). `npx tsc --noEmit` and `pnpm lint` in `web/` are clean.
+Tests, none of which calls a paid service: `api/.venv/bin/python -m pytest api/tests` (50), `api/.venv/bin/python -m pytest api/evals` (101), `pnpm test` in `web/` (62). `npx tsc --noEmit` and `pnpm lint` in `web/` are clean.
 
 ## Not verified
 
@@ -66,12 +68,13 @@ Tests, none of which calls a paid service: `api/.venv/bin/python -m pytest api/t
 - **The tap flow on the live site** was exercised through the API, not by clicking the live map.
 - **Languages** beyond English, Hindi and Hinglish: one German advisor case.
 - **No model is trained** from the yes/no feedback; it is only stored, and no real verdicts exist yet.
+- **Rate limits on Lambda with DynamoDB.** Only run locally with in-memory counters; the table is created on the next deploy. After deploying, ask the advisor 31 questions within an hour from one address to see the banner.
 
 ## Known faults and open work
 
 In rough order of value.
 
-1. **Commit and push** (owner). Everything below assumes it.
+1. **Deploy** (owner): `git pull && scripts/deploy.sh` on a machine with the AWS CLI logged in. It brings the live site up to date and turns the rate limits on.
 2. **Rotate the Bedrock key after the hackathon** and delete `bedrock-long-term-api-key.csv` from the Desktop. The key appeared in an earlier assistant conversation. `web/.env.local` also holds a copy the website no longer uses; delete it.
 3. **One plan covers one roof face.** A pitched roof's faces are surveyed one at a time and not added together. A whole-roof plan across several faces is the biggest missing feature for countries with pitched roofs.
 4. **Google sometimes takes about 30 s** instead of 5–10 (seen several times). The screen says so after 10 s and results are cached for 20 minutes, but a first visit can still be slow.
@@ -79,7 +82,7 @@ In rough order of value.
 6. **Advisor faults** (section 14 of the reference): replies after a specialist run long; "net metering" sometimes unexplained; hedged general remarks such as "your state may offer rebates"; what-if sizes are approximate.
 7. **Subsidy on ground-mounted panels** is shown with a note that it is unconfirmed; the figure still includes it.
 8. **Policy data** covers four Indian distributor families; some surplus rates are unconfirmed and flagged in `api/data/policies.json`.
-9. **No login or rate limit** on the API. A budget alert on the AWS account is the only backstop. Each property costs one or two Google requests, one Opus naming call, and about $0.04 per advisor answer.
+9. **Rate limits are per address, with no login.** People sharing an address (an office, a college, a mobile carrier's shared address) share an allowance, and one person with many addresses gets many; the daily cap for everyone bounds the cost but, once reached, closes the paid features for everyone until midnight UTC. Each property costs one or two Google requests, one Opus naming call, and about $0.04 per advisor answer. A budget alert on the AWS account is the last backstop.
 10. **Claude 5 models** returned "not available for this account" on Bedrock. `api/homesol/models.py` already handles their tool-call rules, so switching is a change of environment variable.
 
 ## Commands
@@ -95,5 +98,6 @@ Run from the repository root unless stated.
 | Website tests | `cd web && pnpm test` |
 | Advisor test set (paid, about 80 conversations) | `api/.venv/bin/python api/evals/run.py` |
 | Deploy both | `scripts/deploy.sh` |
+| Redraw the README's model chart | `python3 demo/tools/readme_charts.py` (standard library only) |
 
 `api/.env` needs `AWS_BEARER_TOKEN_BEDROCK`, `AWS_REGION=us-east-1`, `GOOGLE_MAPS_API_KEY`, and optionally the three `BEDROCK_*_MODEL_ID` variables. The deploy script copies the Google key and those model variables to the Lambda.

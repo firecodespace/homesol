@@ -55,6 +55,56 @@ export interface ChatTurn {
   text: string;
 }
 
+/** A rate limit the API reported: what was limited, for whom, and when it can be tried again. */
+export interface RateLimit {
+  message: string;
+  /** "visitor": this person's hourly allowance; "everyone": the daily cap for all visitors; "busy": too many at once. */
+  scope: "visitor" | "everyone" | "busy";
+  /** Which allowance: "measure" (Google's survey), "ai" (Claude), "speech" (Transcribe), or null when busy. */
+  id: string | null;
+  kind: string;
+  limit: number | null;
+  retryAfterS: number;
+}
+
+export class RateLimitError extends Error {
+  constructor(readonly limit: RateLimit) {
+    super(limit.message);
+    this.name = "RateLimitError";
+  }
+}
+
+const limitListeners = new Set<(limit: RateLimit) => void>();
+
+/** Called whenever any request is refused for a rate limit, so the page can say so wherever it happened. */
+export function onRateLimit(listener: (limit: RateLimit) => void): () => void {
+  limitListeners.add(listener);
+  return () => limitListeners.delete(listener);
+}
+
+/** The API's 429 detail, or, from the Lambda's own concurrency cap, a plain "too busy". */
+export function rateLimitFrom(body: unknown, retryAfterHeader: string | null): RateLimit {
+  const d = (body as { detail?: Partial<{ message: string; id: string; scope: string; kind: string; limit: number; retry_after: number }> } | null)?.detail;
+  if (d && typeof d === "object" && typeof d.message === "string") {
+    return {
+      message: d.message,
+      scope: d.scope === "everyone" ? "everyone" : "visitor",
+      id: d.id ?? null,
+      kind: d.kind ?? "requests",
+      limit: d.limit ?? null,
+      retryAfterS: Math.max(1, Number(d.retry_after) || 60),
+    };
+  }
+  return {
+    message: "homesol is busy: too many people are using it at once. Try again in a minute.",
+    scope: "busy",
+    id: null,
+    kind: "requests",
+    limit: null,
+    retryAfterS: Math.max(1, Number(retryAfterHeader) || 60),
+  };
+}
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -63,6 +113,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("Can't reach the homesol server. Check that it is running.");
   }
   const body: unknown = await res.json().catch(() => null);
+  if (res.status === 429) {
+    const limit = rateLimitFrom(body, res.headers.get("retry-after"));
+    limitListeners.forEach((listener) => listener(limit));
+    throw new RateLimitError(limit);
+  }
   if (!res.ok) {
     const detail = (body as { detail?: unknown } | null)?.detail;
     throw new Error(typeof detail === "string" ? detail : "The homesol server returned an error.");
