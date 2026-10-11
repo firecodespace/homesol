@@ -77,7 +77,7 @@ body {
 
 /* Buttons: 40px tall, fully rounded, label-large text */
 @utility md-button {
-  @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium tracking-[0.1px] transition
+  @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium tracking-[0.1px] whitespace-nowrap transition
     disabled:cursor-not-allowed disabled:opacity-40;
 }
 @utility md-filled {
@@ -115,7 +115,7 @@ body {
 }
 
 @utility md-chip {
-  @apply inline-flex h-8 items-center rounded-sm border border-outline px-3 text-sm font-medium text-on-surface-variant
+  @apply inline-flex h-8 items-center rounded-sm border border-outline px-3 text-sm font-medium whitespace-nowrap text-on-surface-variant
     hover:bg-on-surface/8;
 }
 
@@ -135,4 +135,40 @@ body {
   font-weight: 600;
   border: 2px solid #fff;
   pointer-events: none;
+}
+
+/* Explanations that appear when pointing at something on the map. */
+.map-tip .maplibregl-popup-content {
+  background: var(--color-inverse-surface);
+  color: var(--color-inverse-on-surface);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font: 400 12px/16px var(--font-sans);
+  letter-spacing: 0.4px;
+  box-shadow: var(--shadow-level2);
+}
+.map-tip .maplibregl-popup-tip {
+  display: none;
+}
+.map-tip p + p {
+  margin-top: 4px;
+}
+.map-tip .tip-title {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+.map-tip .tip-note {
+  opacity: 0.8;
+}
+
+/* Indeterminate progress: a bar sliding across its track. */
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
 }

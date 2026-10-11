@@ -55,6 +55,9 @@ MIN_ELEVATION_DEG = 6.0
 EDGE_STRUCTURE_MAX_M2 = 60.0
 EDGE_STRUCTURE_MAX_HEIGHT_M = 5.0
 EDGE_STRUCTURE_TOUCH = 0.4
+#: Unlabelled pixels this far above the surface, within this distance of an obstruction, belong to it.
+EDGE_BLUR_MIN_M = 0.3
+EDGE_BLUR_REACH_M = 1.5
 #: An unmarked neighbour whose top strays less than this from a plane is a building, not a tree.
 FLAT_TOP_ROUGHNESS_M = 0.5
 MAX_OBSTRUCTIONS = 40
@@ -553,6 +556,15 @@ def find_obstructions(tile: Tile, surface: Surface) -> tuple[np.ndarray, list[di
             full[: piece.shape[0], : piece.shape[1]] = piece
             piece = full
         labels[piece & (labels == 0)] = item["id"]
+
+    # The height data blurs every edge into a ring of pixels part-way up. Those pixels cast shadows
+    # too, so each raised, unlabelled pixel beside an obstruction is counted as part of it.
+    raised = valid & (above > EDGE_BLUR_MIN_M)
+    for _ in range(max(1, round(EDGE_BLUR_REACH_M / px))):
+        for dr, dc in _NEIGHBOURS4:
+            neighbour = _shift_values(labels, dr, dc)
+            take = raised & (labels == 0) & (neighbour >= 2)
+            labels[take] = neighbour[take]
     return labels, found
 
 

@@ -1,9 +1,10 @@
 """Model-graded criteria: one narrow yes/no question per call.
 
 These are judgement calls a regex cannot make. They are kept apart from the
-deterministic checks in every output. The grader is the same Bedrock model the
-advisor runs on unless EVAL_GRADER_MODEL_ID is set, which is a known weakness:
-a model tends to be lenient about its own style.
+deterministic checks in every output. The grader is never the model that wrote
+the answer, because a model tends to be lenient about its own style: it is
+Claude Opus 4.6, or Claude Sonnet 4.6 when the advisor itself is an Opus.
+Set EVAL_GRADER_MODEL_ID to choose another.
 """
 
 from __future__ import annotations
@@ -16,13 +17,16 @@ import boto3
 
 from homesol import agents
 
-GRADER_MODEL_ID = os.environ.get("EVAL_GRADER_MODEL_ID") or agents.MODEL_ID
+OPUS, SONNET = "us.anthropic.claude-opus-4-6-v1", "us.anthropic.claude-sonnet-4-6"
+GRADER_MODEL_ID = os.environ.get("EVAL_GRADER_MODEL_ID") or (SONNET if "opus" in agents.ADVISOR_MODEL_ID else OPUS)
 
 SYSTEM = (
-    "You grade one reply from a chatbot that advises Indian households about rooftop solar. "
-    "You are given the household's question, the chatbot's reply, and ONE criterion. "
+    "You grade one reply from a chatbot that advises a household, anywhere in the world, about putting solar panels "
+    "on their roof or land. You are given the household's question (with any earlier turns of the conversation), "
+    "the chatbot's reply, and ONE criterion. "
     "Judge only that criterion, strictly and literally, ignoring everything else about the reply. "
-    "The question and reply may be in English, Hindi or Hinglish; judge them in whatever language they are in. "
+    "The question and reply may be in English, Hindi, Hinglish (Hindi in Latin letters) or another language; "
+    "judge them in whatever language they are in. "
     "Reply with one line of JSON and nothing else, reason first: "
     '{"reason": "<at most 30 words, in English, quoting the words of the reply you relied on>", "verdict": "yes" or "no"}'
 )
@@ -31,13 +35,15 @@ CRITERIA = {
     "first_sentence_answers": (
         "Read ONLY the first sentence, quoted below. Does that sentence by itself give the household the answer "
         "to its question: a yes or no, the figure asked for, a plain statement of what the thing is or what to do, "
-        "or a plain statement that the chatbot cannot answer that? Say no if the first sentence is a greeting, a "
+        "or a plain statement that the chatbot does not have, or cannot work out, what was asked? When the "
+        "question asks two things, answering the first of them is enough. Say no if the first sentence is a greeting, a "
         "restatement of the question, or a lead-in such as 'Based on your survey' or 'Let me explain' with the "
         "answer only arriving later."
     ),
     "layperson_clear": (
         "Could an adult who has never dealt with solar panels or electricity tariffs follow this reply without "
         "looking anything up? Everyday words are fine: units, subsidy, kW, bill, savings, panel, vendor, quote. "
+        "A term the household used in its own question is fine too. "
         "Look for two things. (a) Jargon: any of these terms, or its Hindi equivalent, used in the reply with no "
         "few-word explanation of what it means: net metering, kWh, kWp, DISCOM, tariff slab, inverter, feed-in "
         "tariff, wheeling charge, surplus credit, gross cost, net cost, payback period. (b) Data dump: the reply is "
@@ -70,9 +76,12 @@ def _bedrock():
     return _client
 
 
-def grade(question: str, answer: str, criterion: str) -> dict:
+def grade(question: str, answer: str, criterion: str, earlier: str = "") -> dict:
     """Ask the grader one yes/no question. Returns {"pass": bool | None, "reason": str}."""
-    user = f"QUESTION FROM THE HOUSEHOLD:\n{question}\n\nCHATBOT REPLY:\n{answer}\n\nCRITERION:\n{criterion}"
+    user = (
+        (f"EARLIER IN THE CONVERSATION:\n{earlier}\n\n" if earlier else "")
+        + f"QUESTION FROM THE HOUSEHOLD:\n{question}\n\nCHATBOT REPLY:\n{answer}\n\nCRITERION:\n{criterion}"
+    )
     try:
         response = _bedrock().converse(
             modelId=GRADER_MODEL_ID,
@@ -116,27 +125,28 @@ def layperson_verdict(question: str, answer: str, listed: list[str], data_dump: 
     }
 
 
-def _layperson(question: str, answer: str) -> dict:
-    result = grade(question, answer, CRITERIA["layperson_clear"])
+def _layperson(question: str, answer: str, earlier: str = "") -> dict:
+    result = grade(question, answer, CRITERIA["layperson_clear"], earlier)
     parsed = result.pop("parsed", {})
     if "unexplained_terms" not in parsed:
         return result
     return layperson_verdict(question, answer, [str(t) for t in parsed.get("unexplained_terms") or []], bool(parsed.get("data_dump")))
 
 
-def grade_case(case: dict, answer: str, unverified_applies: bool) -> dict:
+def grade_case(case: dict, answer: str, unverified_applies: bool, history: list[dict] | None = None) -> dict:
     """All graded criteria that apply to this case. `answer` is the visible answer, leaked reasoning removed."""
     question = case["question"]
+    earlier = "\n".join(f"{'Household' if turn['role'] == 'user' else 'Chatbot'}: {turn['text']}" for turn in history or [])
     out = {
         "first_sentence_answers": grade(
-            question, answer, CRITERIA["first_sentence_answers"] + f'\n\nFIRST SENTENCE: "{first_sentence(answer)}"'
+            question, answer, CRITERIA["first_sentence_answers"] + f'\n\nFIRST SENTENCE: "{first_sentence(answer)}"', earlier
         ),
-        "layperson_clear": _layperson(question, answer),
+        "layperson_clear": _layperson(question, answer, earlier),
     }
     if case.get("careful"):
-        out["careful_handling"] = grade(question, answer, case["careful"])
+        out["careful_handling"] = grade(question, answer, case["careful"], earlier)
     if unverified_applies:
-        out["flags_unverified"] = grade(question, answer, CRITERIA["flags_unverified"])
+        out["flags_unverified"] = grade(question, answer, CRITERIA["flags_unverified"], earlier)
     for result in out.values():
         result.pop("parsed", None)
     return out

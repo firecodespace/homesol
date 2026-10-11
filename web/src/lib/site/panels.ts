@@ -25,7 +25,10 @@ export interface Panel {
 }
 
 export interface PanelLayout {
-  /** Every position a panel physically fits, best sun first. */
+  /**
+   * Every position a panel physically fits. The good ones come first, in the order a system
+   * would grow: starting from the sunniest and spreading to its neighbours.
+   */
   panels: Panel[];
   /** How many of them get good sun. */
   good: number;
@@ -212,22 +215,77 @@ export function layoutPanels(model: SiteModel): PanelLayout {
     }
   }
 
-  const panels = best
-    .map(({ u, v, access: mean, row }): Panel => ({
-      corners: (
-        [
-          [-0.5, -0.5],
-          [0.5, -0.5],
-          [0.5, 0.5],
-          [-0.5, 0.5],
-        ] as const
-      ).map(([a, b]) => {
-        const [col, r] = toGrid(u + a * PANEL_LONG_M, v + b * depth);
-        return gridToLngLat(model, col, r);
-      }),
-      access: mean,
-      row,
-    }))
-    .sort((p, q) => q.access - p.access);
-  return { ...empty, panels, good: panels.filter((p) => p.access >= GOOD_ACCESS).length };
+  const good = planOrder(
+    best.filter((p) => p.access >= GOOD_ACCESS),
+    Math.max(colPitchM, rowPitchM) * 1.15,
+  );
+  const rest = best.filter((p) => p.access < GOOD_ACCESS).sort((p, q) => q.access - p.access);
+  const panels = [...good, ...rest].map(({ u, v, access: mean, row }): Panel => ({
+    corners: (
+      [
+        [-0.5, -0.5],
+        [0.5, -0.5],
+        [0.5, 0.5],
+        [-0.5, 0.5],
+      ] as const
+    ).map(([a, b]) => {
+      const [col, r] = toGrid(u + a * PANEL_LONG_M, v + b * depth);
+      return gridToLngLat(model, col, r);
+    }),
+    access: mean,
+    row,
+  }));
+  return { ...empty, panels, good: good.length };
+}
+
+/**
+ * The order in which positions join a growing system: the sunniest first, then
+ * always a neighbour of what is already placed, so a system of any size is one
+ * tidy block of panels and not the sunniest spots scattered across the surface.
+ */
+function planOrder<T extends { u: number; v: number; access: number }>(positions: T[], reach: number): T[] {
+  const n = positions.length;
+  if (n < 2) return positions;
+  const centreU = positions.reduce((s, p) => s + p.u, 0) / n;
+  const centreV = positions.reduce((s, p) => s + p.v, 0) / n;
+  // Sun differences of a couple of percent are within the data's noise; do not let them break up the block.
+  const band = positions.map((p) => Math.round(p.access / 0.03));
+
+  // Which positions sit next to which.
+  const neighbours: number[][] = positions.map(() => []);
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (Math.abs(positions[i].u - positions[j].u) <= reach && Math.abs(positions[i].v - positions[j].v) <= reach) {
+        neighbours[i].push(j);
+        neighbours[j].push(i);
+      }
+    }
+  }
+
+  const placed = new Uint8Array(n);
+  const frontier = new Set<number>();
+  const order: number[] = [];
+  let sumU = 0;
+  let sumV = 0;
+  const better = (i: number, j: number, toU: number, toV: number) =>
+    j < 0 ||
+    band[i] > band[j] ||
+    (band[i] === band[j] &&
+      Math.hypot(positions[i].u - toU, positions[i].v - toV) < Math.hypot(positions[j].u - toU, positions[j].v - toV));
+
+  while (order.length < n) {
+    const cu = order.length ? sumU / order.length : centreU;
+    const cv = order.length ? sumV / order.length : centreV;
+    let next = -1;
+    for (const i of frontier) if (better(i, next, cu, cv)) next = i;
+    // Nothing touches the block: start, or start again, from the best position not yet placed.
+    if (next < 0) for (let i = 0; i < n; i++) if (!placed[i] && better(i, next, cu, cv)) next = i;
+    placed[next] = 1;
+    frontier.delete(next);
+    order.push(next);
+    sumU += positions[next].u;
+    sumV += positions[next].v;
+    for (const j of neighbours[next]) if (!placed[j]) frontier.add(j);
+  }
+  return order.map((i) => positions[i]);
 }

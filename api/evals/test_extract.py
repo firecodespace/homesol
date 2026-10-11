@@ -3,7 +3,7 @@
 import pytest
 
 from evals.checks import matches
-from evals.extract import language_of, quantities
+from evals.extract import language_of, quantities, stopword_shares
 
 
 def found(text):
@@ -47,10 +47,53 @@ def found(text):
         ("see https://solarquarter.com/2026/07/20/delhi-guidelines-2026 for more", []),
         ("in the 1st year", []),
         ("aap form bhar do aur 2 step follow karo", []),
+        ("The quote of $21,500 pays back in 12.7 years", [("money", 21500), ("years", 12.7)]),
+        ("you pay about 15 cents a unit", [("money", 0.15)]),
+        ("minus 60 paise a unit", [("money", 0.6)]),
+        ("tilted 24 degrees, facing south-west", [("degrees", 24)]),
+        ("a 24° slope", [("degrees", 24)]),
+        ("about 5.8 hours of full sun", [("hours", 5.8)]),
+        ("each panel is rated 550 W", [("watts", 550)]),
+        ("a 7.7 kW system of 14 panels on 2 floors", [("kw", 7.7), ("panels", 14), ("floors", 2)]),
+        ("the tree is 6.5 m away and rises 3.8 m above the roof", [("metres", 6.5), ("metres", 3.8)]),
+        ("approval comes within 30 days", [("days", 30)]),
+        ("in full sun from 10:00 to 15:50 in winter", [("time", 600), ("time", 950)]),
+        ("from 9:40 am to 4:10 pm", [("time", 580), ("time", 970)]),
+        ("from about 10 am until 4 pm", [("time", 600), ("time", 960)]),
+        ("सुबह 9:40 से शाम 4:10 बजे तक", [("time", 580), ("time", 250)]),
     ],
 )
 def test_extraction(text, expected):
     assert found(text) == [(k, pytest.approx(v, abs=0.002)) for k, v in expected]
+
+
+@pytest.mark.parametrize(
+    "text,currency",
+    [
+        ("₹1.65 lakh", "INR"),
+        ("Rs. 91,500", "INR"),
+        ("1.65 lakh", "INR"),
+        ("78,000 rupaye", "INR"),
+        ("$21,500", "DOLLAR"),
+        ("US$21,500", "USD"),
+        ("USD 1,620 a year", "USD"),
+        ("0.15 USD a unit", "USD"),
+        ("A$9,800", "AUD"),
+        ("AUD 2,520", "AUD"),
+        ("1,546 dollars", "DOLLAR"),
+        ("€4,200", "EUR"),
+        ("£900", "GBP"),
+        ("$1,546 to $1,620", "DOLLAR"),
+    ],
+)
+def test_currency(text, currency):
+    first = quantities(text)[0]
+    assert (first.kind, first.currency) == ("money", currency)
+
+
+def test_afternoon_reading_of_a_bare_clock_time():
+    assert quantities("शाम 4:10 बजे")[0].alt == 970
+    assert quantities("16:10")[0].alt is None
 
 
 def q(text):
@@ -91,3 +134,10 @@ def test_rounding_tolerance(text, truth, ok):
 )
 def test_language(text, label):
     assert language_of(text)["label"] == label
+
+
+def test_other_languages_by_everyday_words():
+    german = stopword_shares("Das kann homesol noch nicht berechnen, weil Sie Ihre monatliche Stromrechnung nicht eingegeben haben.")
+    english = stopword_shares("homesol cannot work that out yet, because you have not entered your monthly electricity bill.")
+    assert german["de"] > 0.25 > german["en"]
+    assert english["en"] > 0.25 > english["de"]

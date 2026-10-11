@@ -39,7 +39,7 @@ export function surveyFor(analysis: Analysis, sizing: Sizing | null) {
     obstructions: model.measured
       ? model.obstructions
           .map((o) => ({
-            name: o.name,
+            name: s.names[o.id]?.name ?? o.name,
             on_surface: o.on_surface,
             height_above_m: o.height_above_m,
             distance_m: o.distance_m,

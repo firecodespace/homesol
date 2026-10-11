@@ -9,32 +9,36 @@ from __future__ import annotations
 import json
 import re
 
-from homesol import finance, policy
-from homesol.agents import baseline_finances
+from homesol import agents, finance, policy
+from homesol.agents import baseline_finances, largest_system_kw
 
-from .extract import Quantity, language_of, normalise, quantities, strip_urls
+from .extract import CURRENCY_FITS, Quantity, language_of, normalise, quantities, stopword_shares, strip_urls
 
 WORD_LIMIT = 150
 #: Kinds that are checked by the two headline number checks.
 MONEY_KINDS = ("money",)
 YEAR_KINDS = ("years", "months")
-OTHER_KINDS = ("units", "kw", "percent", "panels", "area", "metres", "bare")
-POOLS = ("money", "years", "units", "kw", "percent", "panels", "area", "metres", "any")
+OTHER_KINDS = ("units", "kw", "watts", "percent", "panels", "floors", "area", "metres", "degrees", "hours", "days", "time", "bare")
+POOLS = ("money", "years", "units", "kw", "watts", "percent", "panels", "floors", "area", "metres", "degrees", "hours", "days", "time", "any")
+FEET_PER_METRE, SQ_FEET_PER_M2 = 3.281, 10.764
 
 #: Finance fields that depend on the electricity price, so on the tariff slabs when rate_basis is discom_slabs.
 SLAB_FIELDS = ("bill_before", "bill_after", "first_year_savings", "payback_years", "lifetime_savings", "surplus_credit")
 
 _UNVERIFIED = re.compile(
     normalise(
-        r"unverif|not (?:yet |been |fully |officially )*(?:verified|checked|confirmed)|"
+        r"unverif|unconfirm|(?:not|n't) (?:yet |been |fully |officially |independently )*(?:verified|checked|confirmed)|"
         r"needs? (?:to be |further )?(?:check|verif|confirm)|still needs? check|indicative|provisional|"
-        r"yet to be (?:verified|checked|confirmed)|verify|double.check|cross.check|सत्यापि|सत्यापन|पुष्टि|जा[ँं]च|अपुष्ट|सांकेतिक|"
-        r"jaa?nch|pakk[ai] nahi|confirm nahi|check (?:nahi|kar)|चेक"
+        r"(?:yet|still) to be (?:verified|checked|confirmed)|verify|double.check|cross.check|सत्यापि|सत्यापन|पुष्टि|जा[ँं]च|अपुष्ट|सांकेतिक|"
+        r"jaa?nch|pakk[ai] nahi|confirm (?:nahi|nahin|karna|kar|hona)|check (?:nahi|kar)|चेक|कन्फर्म|pushti"
     ),
     re.I,
 )
 
-_PRICE_DATA = re.compile(normalise(r"rate|tariff|slab|regulator|net.?meter|surplus|दर|टैरिफ|स्लैब|नियामक|नेट मीटरिंग|अधिशेष"), re.I)
+_PRICE_DATA = re.compile(
+    normalise(r"rate|tariff|slab|regulator|net.?meter|surplus|extra units?|export|pa(?:y|id|ys)\b|credit|figure|दर|टैरिफ|स्लैब|नियामक|नेट मीटरिंग|अधिशेष|अतिरिक्त यूनिट|यूनिट|unit"),
+    re.I,
+)
 _LINE = re.compile(r"(?<=[.!?।])\s+|\n+")
 
 # ---- what is true for this case -------------------------------------------
@@ -51,26 +55,31 @@ def _tolerance(q: Quantity, truth: float) -> float:
     half = q.step / 2
     if q.kind == "percent":
         return (1.0 if q.step >= 1 else half) + 1e-9  # "75%" for a measured 0.74, but not "10%" for 12
-    if q.kind in ("years", "months", "kw", "panels", "metres"):
+    if q.kind in ("years", "months", "kw", "watts", "panels", "floors", "metres", "degrees", "hours", "days", "time"):
         return half + 1e-9
     return min(max(half, 0.005 * abs(truth)), max(0.05 * abs(truth), 0.005)) + 1e-9
 
 
 def matches(q: Quantity, pool: list[tuple[float, str]]) -> list[str]:
     """Labels of the true figures this stated quantity agrees with."""
-    return [label for truth, label in pool if abs(q.value - truth) <= _tolerance(q, truth)]
+    readings = [q.value] if q.alt is None else [q.value, q.alt]  # "4:10" may be morning or afternoon
+    return [label for truth, label in pool if any(abs(value - truth) <= _tolerance(q, truth) for value in readings)]
 
 
 def _finance_truths(fin: dict, tag: str, truth: dict) -> None:
+    """Every figure in one finance result. Outside India the price, payback and 25-year saving may be None: then there is nothing to match."""
     if not fin or "error" in fin:
         return
     for key in ("gross_cost", "subsidy", "net_cost", "bill_before", "bill_after", "first_year_savings", "surplus_credit", "lifetime_savings"):
-        truth["money"].append((fin[key], f"{tag}.{key}"))
+        if fin.get(key) is not None:
+            truth["money"].append((fin[key], f"{tag}.{key}"))
     for key in ("bill_before", "bill_after", "first_year_savings"):
         truth["money"].append((fin[key] / 12, f"{tag}.{key}/12"))
-    truth["money"].append((fin["gross_cost_range"][0], f"{tag}.gross_cost_range.low"))
-    truth["money"].append((fin["gross_cost_range"][1], f"{tag}.gross_cost_range.high"))
-    truth["money"].append((fin["lifetime_savings"] + fin["net_cost"], f"{tag}.lifetime_savings+net_cost"))
+    if fin.get("gross_cost_range"):
+        truth["money"].append((fin["gross_cost_range"][0], f"{tag}.gross_cost_range.low"))
+        truth["money"].append((fin["gross_cost_range"][1], f"{tag}.gross_cost_range.high"))
+    if fin.get("lifetime_savings") is not None and fin.get("net_cost") is not None:
+        truth["money"].append((fin["lifetime_savings"] + fin["net_cost"], f"{tag}.lifetime_savings+net_cost"))
     if fin["payback_years"] is not None:
         truth["years"].append((fin["payback_years"], f"{tag}.payback_years"))
         truth["years"].append((fin["payback_years"] * 12, f"{tag}.payback_years(months)"))
@@ -112,8 +121,11 @@ def snapshot(case: dict, survey: dict) -> dict:
     household = survey.get("household") or {}
     what_if = case.get("what_if")
     data = policy.load()
-    discom_ids = [d for d in [household.get("discom_id"), *case.get("extra_discoms", [])] if d and policy.get_discom(d)]
-    sections = {"central_subsidy": data["central_subsidy"], "system_cost_per_kw": data["system_cost_per_kw"]}
+    country_code, _, currency = agents._place(survey)
+    india = country_code == "IN"
+    # homesol holds subsidy, price and tariff data for India only, so elsewhere none of it may be quoted.
+    discom_ids = [d for d in [household.get("discom_id"), *case.get("extra_discoms", [])] if india and d and policy.get_discom(d)]
+    sections = {"central_subsidy": data["central_subsidy"], "system_cost_per_kw": data["system_cost_per_kw"]} if india else {}
     sections.update({f"discoms.{d}": data["discoms"][d] for d in discom_ids})
     fixed = {}
     for d in discom_ids:
@@ -123,14 +135,65 @@ def snapshot(case: dict, survey: dict) -> dict:
     return {
         "baseline": baseline_finances(survey),
         "what_if": baseline_finances(survey, what_if.get("system_kw"), what_if.get("quoted_cost")) if what_if else None,
+        "currency": currency,
         "policy": sections,
-        "subsidy_by_kw": {str(kw): policy.central_subsidy(kw) for kw in (1, 2, 3)},
+        "subsidy_by_kw": {str(kw): policy.central_subsidy(kw) for kw in (1, 2, 3)} if india else {},
         "fixed_charge_per_month": fixed,
         "life_years": finance.SYSTEM_LIFE_YEARS,
         "tariff_escalation_percent": finance.TARIFF_ESCALATION * 100,
         "panel_degradation_percent": finance.PANEL_DEGRADATION * 100,
         "known_links": sorted({str(leaf) for path, leaf in _walk(data, "policy") if path.endswith((".source", ".apply_at"))}),
     }
+
+
+def _clock(window: str) -> tuple[int, int] | None:
+    """Start and end of "09:40 to 16:10" in minutes after midnight."""
+    found = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*(?:to|-|–)\s*(\d{1,2}):(\d{2})\s*", window or "")
+    if not found:
+        return None
+    h1, m1, h2, m2 = map(int, found.groups())
+    return h1 * 60 + m1, h2 * 60 + m2
+
+
+def _site_truths(survey: dict, truth: dict) -> None:
+    """The figures of the site survey: the surface, the sun on it, what shades it and the panel layout."""
+    surface, sun, panels = survey.get("surface") or {}, survey.get("sun") or {}, survey.get("panels") or {}
+
+    def add(bucket: str, value, label: str) -> None:
+        if value is not None and not isinstance(value, bool):
+            truth[bucket].append((float(value), label))
+
+    def length(value, label: str) -> None:
+        add("metres", value, label)
+        if value is not None:
+            add("metres", value * FEET_PER_METRE, f"{label} (in feet)")
+
+    add("area", surface.get("area_m2"), "survey.surface.area_m2")
+    if surface.get("area_m2") is not None:
+        add("area", surface["area_m2"] * SQ_FEET_PER_M2, "survey.surface.area_m2 (in square feet)")
+    length(surface.get("height_m"), "survey.surface.height_m")
+    add("floors", surface.get("floors"), "survey.surface.floors")
+    add("degrees", surface.get("tilt_deg"), "survey.surface.tilt_deg")
+    if sun.get("share_of_full_sun") is not None:
+        share = sun["share_of_full_sun"] * 100
+        truth["percent"] += [(share, "survey.sun.share_of_full_sun %"), (100 - share, "survey share of sun lost to shade %")]
+    for season, window in (sun.get("full_sun_hours") or {}).items():
+        clock = _clock(window)
+        if clock:
+            truth["time"] += [(clock[0], f"survey.sun.full_sun_hours.{season} start"), (clock[1], f"survey.sun.full_sun_hours.{season} end")]
+            add("hours", (clock[1] - clock[0]) / 60, f"survey.sun.full_sun_hours.{season} length")
+    for i, o in enumerate(survey.get("obstructions") or []):
+        length(o.get("height_above_m"), f"survey.obstructions[{i}].height_above_m")
+        length(o.get("distance_m"), f"survey.obstructions[{i}].distance_m")
+        if o.get("share_of_shade") is not None:
+            add("percent", o["share_of_shade"] * 100, f"survey.obstructions[{i}].share_of_shade %")
+    add("panels", panels.get("fit"), "survey.panels.fit")
+    add("panels", panels.get("recommended"), "survey.panels.recommended")
+    add("degrees", panels.get("tilt_deg"), "survey.panels.tilt_deg")
+    add("watts", panels.get("panel_watts"), "survey.panels.panel_watts")
+    if panels.get("panel_watts"):
+        add("kw", panels["panel_watts"] / 1000, "survey.panels.panel_watts in kW")
+    add("kw", largest_system_kw(survey), "largest system that fits (panels.fit x panel_watts)")
 
 
 def build_truth(case: dict, survey: dict, tool_calls: list[dict], snap: dict) -> dict:
@@ -153,11 +216,11 @@ def build_truth(case: dict, survey: dict, tool_calls: list[dict], snap: dict) ->
                 returned = json.loads(call.get("output") or "")
             except ValueError:
                 continue
-            if isinstance(returned, dict) and "gross_cost" in returned:
+            if isinstance(returned, dict) and "bill_before" in returned:
                 _finance_truths(returned, f"toolcall{_args(call.get('input') or {})}", truth)
 
     sections = snap["policy"]
-    cost = sections["system_cost_per_kw"]
+    cost = sections.get("system_cost_per_kw")
     for name, section in sections.items():
         for path, leaf in _walk(section, f"policy.{name}"):
             if isinstance(leaf, bool) or leaf is None:
@@ -175,52 +238,44 @@ def build_truth(case: dict, survey: dict, tool_calls: list[dict], snap: dict) ->
         truth["money"] += [(charge, f"policy.discoms.{d}.tariff.fixed_charge"), (charge * 12, f"policy.discoms.{d}.tariff.fixed_charge x12")]
 
     truth["years"] += [(snap["life_years"], "finance.SYSTEM_LIFE_YEARS"), (1, "one year")]
+    truth["days"].append((365, "days in a year"))
     truth["percent"] += [(snap["tariff_escalation_percent"], "finance.TARIFF_ESCALATION"), (snap["panel_degradation_percent"], "finance.PANEL_DEGRADATION")]
 
-    roof = survey.get("roof") or {}
-    for path, leaf in _walk(survey, "survey"):
-        if isinstance(leaf, bool) or not isinstance(leaf, (int, float)):
-            continue
-        key = path.rsplit(".", 1)[-1].split("[")[0]
-        bucket = {"area_m2": "area", "usable_area_m2": "area", "height_m": "metres", "max_system_kw": "kw", "system_kw": "kw",
-                  "monthly_units": "units", "monthly_generation_units": "units", "panels": "panels"}.get(key)
-        if bucket:
-            truth[bucket].append((leaf, path))
-    for i, o in enumerate(survey.get("obstructions") or []):
-        if o.get("height_m") is not None and o.get("height_from") == "ground" and roof.get("height_m") is not None:
-            truth["metres"].append((o["height_m"] - roof["height_m"], f"survey.obstructions[{i}] height above the roof"))
-    bill, quote, units = household.get("monthly_bill_rupees"), household.get("vendor_quote_rupees"), household.get("monthly_units")
+    _site_truths(survey, truth)
+    bill, quote, units = household.get("monthly_bill"), household.get("vendor_quote"), household.get("monthly_units")
     if bill:
-        truth["money"] += [(bill, "survey.household.monthly_bill_rupees"), (bill * 12, "survey.monthly_bill x12")]
+        truth["money"] += [(bill, "survey.household.monthly_bill"), (bill * 12, "survey.monthly_bill x12")]
         if units:
             truth["money"].append((bill / units, "survey bill / units"))
+    if units:
+        truth["units"] += [(units, "survey.household.monthly_units"), (units * 12, "survey usage per year"), (units / 30, "survey usage per day, average")]
     if system.get("system_kw"):
         kw = system["system_kw"]
-        truth["money"].append((kw * cost["typical"], "policy typical cost x system_kw"))
+        truth["kw"].append((kw, "survey.recommended_system.system_kw"))
+        if system.get("panels") is not None:
+            truth["panels"].append((system["panels"], "survey.recommended_system.panels"))
+        if cost:
+            truth["money"].append((kw * cost["typical"], "policy typical cost x system_kw"))
         if quote:
-            truth["money"] += [
-                (quote, "survey.household.vendor_quote_rupees"),
-                (quote / kw, "quote per kW"),
-                (quote - kw * cost["high"], "quote minus top of usual range"),
-                (quote - kw * cost["typical"], "quote minus typical cost"),
-            ]
-            truth["percent"].append(((quote / (kw * cost["high"]) - 1) * 100, "quote % above top of usual range"))
-            truth["percent"].append(((quote / (kw * cost["typical"]) - 1) * 100, "quote % above typical cost"))
+            truth["money"] += [(quote, "survey.household.vendor_quote"), (quote / kw, "quote per kW")]
+            if cost:  # only India has a usual price range to hold a quote against
+                truth["money"] += [
+                    (quote - kw * cost["high"], "quote minus top of usual range"),
+                    (quote - kw * cost["typical"], "quote minus typical cost"),
+                ]
+                truth["percent"].append(((quote / (kw * cost["high"]) - 1) * 100, "quote % above top of usual range"))
+                truth["percent"].append(((quote / (kw * cost["typical"]) - 1) * 100, "quote % above typical cost"))
         gen = system.get("monthly_generation_units") or []
         if gen:
+            truth["units"] += [(value, f"survey.recommended_system.monthly_generation_units[{i}]") for i, value in enumerate(gen)]
             truth["units"] += [(sum(gen), "survey generation per year"), (sum(gen) / 12, "survey generation per month, average"), (sum(gen) / 365, "survey generation per day, average")]
         if system.get("share_of_usage_covered") is not None:
             share = system["share_of_usage_covered"] * 100
             truth["percent"] += [(share, "survey share_of_usage_covered %"), (100 - share, "survey share of usage not covered %")]
-    if units:
-        truth["units"].append((units * 12, "survey usage per year"))
-    if roof.get("yearly_sun_reaching_roof") is not None:
-        sun = roof["yearly_sun_reaching_roof"] * 100
-        truth["percent"] += [(sun, "survey yearly_sun %"), (100 - sun, "survey shade %")]
-    if roof.get("area_m2") and roof.get("usable_area_m2") is not None:
-        truth["percent"].append((roof["usable_area_m2"] / roof["area_m2"] * 100, "survey usable share of roof %"))
 
-    _text_truths(case["question"], "question", truth, any_unit=True)
+    # What the household typed, in this message or an earlier one, is fair to repeat.
+    for text in [*case.get("earlier", []), case["question"]]:
+        _text_truths(text, "question", truth, any_unit=True)
     return {"pools": truth, "baseline": baseline, "what_if": expected, "snap": snap}
 
 
@@ -287,6 +342,10 @@ _SENTENCE = re.compile(r"(?<=[.!?।:])\s+|\n+")
 
 def check_language(case: dict, answer: str) -> dict:
     """The whole answer is in the question's language, and no long sentence inside it switches to another."""
+    if case["lang"] not in ("en", "hi", "hinglish"):  # any other language: judged by its everyday words
+        shares = stopword_shares(answer)
+        mine = shares.get(case["lang"], 0.0)
+        return {"pass": mine >= 0.15 and mine > 1.5 * shares["en"], "detail": {"expected": case["lang"], "share_of_everyday_words": shares}}
     got = language_of(answer)
     strays = []
     for part in _SENTENCE.split(strip_urls(answer)):
@@ -324,7 +383,10 @@ def _resolve(name, truth: dict):
         name, divide = name[:-3], 12
     if not source or "error" in source:
         return None, label
-    value = source["gross_cost_range"][int(name.rsplit(".", 1)[1])] if name.startswith("gross_cost_range.") else source.get(name)
+    if name.startswith("gross_cost_range."):
+        value = source["gross_cost_range"][int(name.rsplit(".", 1)[1])] if source.get("gross_cost_range") else None
+    else:
+        value = source.get(name)
     return (None if value is None else value / divide), label
 
 
@@ -385,8 +447,9 @@ def check_markdown(answer: str) -> dict:
 def check_unverified(items: list[Quantity], answer: str, truth: dict, survey: dict) -> dict:
     """When a quoted figure rests on policy data marked unverified, the answer must say so.
 
-    Two cases: bill and savings figures priced from a slab table whose `verified` flag is false, and the
-    surplus rate or surplus credit when the net-metering entry is unverified.
+    Two cases: bill and savings figures priced from a slab table whose `verified` flag is false, and any
+    figure taken from the net-metering entry (the rate paid for extra units, what they are worth) when that
+    entry is unverified.
     """
     discom = truth["snap"]["policy"].get(f"discoms.{(survey.get('household') or {}).get('discom_id')}")
     if not discom:
@@ -395,11 +458,13 @@ def check_unverified(items: list[Quantity], answer: str, truth: dict, survey: di
     if truth["baseline"].get("rate_basis") == "discom_slabs" and discom["tariff"].get("verified") is False:
         marks += [f".{field}" for field in SLAB_FIELDS] + [".tariff."]
     if discom["net_metering"].get("verified") is False:
-        marks += [".surplus_credit", ".net_metering.surplus_rate"]
+        marks += [".surplus_credit", ".net_metering."]
     if not marks:
         return {"pass": None, "detail": "savings are priced from the household's own bill or from verified entries"}
     traced, _ = _trace(items, MONEY_KINDS + YEAR_KINDS + ("bare",), truth["pools"])
-    leaning = [t["text"] for t in traced if all(any(mark in s for mark in marks) for s in t["sources"])]
+    # The finance notes repeat the unverified entry's own words, so they are no second, independent source.
+    independent = lambda t: [s for s in t["sources"] if not s.endswith(".notes") and not s.startswith("question")]  # noqa: E731
+    leaning = [t["text"] for t in traced if independent(t) and all(any(mark in s for mark in marks) for s in independent(t))]
     if not leaning:
         return {"pass": None, "detail": "the answer quotes no figure that depends on an unverified entry"}
     # The caveat has to be about the price data: "indicative range" for the system cost does not count.
@@ -416,11 +481,15 @@ _ROLES = [
      ("first_year_savings", "first_year_savings/12", "lifetime_savings", "lifetime_savings+net_cost")),
     ("cost after subsidy", r"after (?:the |a |central )*subsidy|net cost|out of pocket|सब्सिडी के बाद|नेट लागत|नेट कॉस्ट|शुद्ध लागत|subsidy ke baad|net kharch", ("net_cost",)),
     ("cost before subsidy", r"before (?:the |any |central )*subsidy|gross cost|सब्सिडी से पहले|subsidy se pehle",
-     ("gross_cost", "gross_cost_range.low", "gross_cost_range.high", "vendor_quote_rupees", "typical cost x system_kw")),
+     ("gross_cost", "gross_cost_range.low", "gross_cost_range.high", "household.vendor_quote", "typical cost x system_kw")),
     ("subsidy", r"subsid|सब्सिडी", ("subsidy", "central_subsidy.max_total", "central_subsidy.per_kw_first_2kw", "central_subsidy.per_kw_third_kw", "kW")),
 ]
 _ROLES = [(name, re.compile(normalise(pattern), re.I), fields) for name, pattern, fields in _ROLES]
 _PAYBACK = re.compile(normalise(r"pay(?:s|ing)? (?:for itself|back)|payback|recover|get (?:my|your) money back|वसूल|वापस|wasool|vasool|wapas"), re.I)
+#: "No subsidy is counted, so you pay the full $21,500": the figure is not being called a subsidy.
+_NO_SUBSIDY = re.compile(normalise(r"\b(?:no|not|without|n't|nahi|nahin|bina|zero)\b|नहीं|बिना"), re.I)
+
+
 def check_labels(answer: str, pools: dict) -> dict:
     """A figure announced as one thing must not be the value of another (the system price given as 'lifetime savings').
 
@@ -435,6 +504,8 @@ def check_labels(answer: str, pools: dict) -> dict:
         years = [q for q in found if q.kind == "years"]
         if len(money) == 1:
             role = next(((name, fields) for name, pattern, fields in _ROLES if pattern.search(line)), None)
+            if role and role[0] == "subsidy" and _NO_SUBSIDY.search(line):
+                role = None
             traced, _ = _trace(money, MONEY_KINDS, pools)
             if role and traced:
                 sources = [s for s in traced[0]["sources"] if not s.startswith("question")]
@@ -479,7 +550,12 @@ def check_links(answer: str, snap: dict) -> dict:
     return {"pass": not unknown, "detail": {"not_in_policy_data": unknown}}
 
 
-_INTERNAL = re.compile(r"policy_finance_analyst|site_analyst|estimate_finances|lookup_policy|discom_id|\btools?\b|'(?:msedcl|bescom|delhi)'", re.I)
+_INTERNAL = re.compile(
+    r"policy_finance_analyst|site_analyst|estimate_finances|lookup_policy|discom_id|\btools?\b|'(?:msedcl|bescom|delhi|gujarat)'|"
+    r"\b(?:site|finance|financial|policy)(?: and finance)? analyst\b|\b(?:my|our|the) (?:specialist|analyst|sub-?agent)s?\b|fact sheet|"
+    r"share_of_shade|share_of_full_sun|monthly_units|system_kw|limited_by",
+    re.I,
+)
 
 
 def check_internals(answer: str) -> dict:
@@ -491,7 +567,7 @@ def check_internals(answer: str) -> dict:
 _MONTHLY = re.compile(normalise(r"month|mahin|मासिक|महीन|माह|प्रति माह"), re.I)
 _YEARLY = re.compile(normalise(r"year|annual|saal|salana|sal mein|साल|वार्षिक|वर्ष"), re.I)
 _YEARLY_SOURCES = (".bill_before", ".bill_after", ".first_year_savings", "x12")
-_MONTHLY_SOURCES = ("/12", "monthly_bill_rupees", ".fixed_charge")
+_MONTHLY_SOURCES = ("/12", "household.monthly_bill", ".fixed_charge")
 
 
 def check_period(answer: str, pools: dict) -> dict:
@@ -543,12 +619,12 @@ def check_tool_args(case: dict, survey: dict, tool_calls: list[dict]) -> dict:
     calls = [c.get("input") or {} for c in tool_calls if c["tool"] == "estimate_finances"]
     if not calls:
         return {"pass": None, "detail": "estimate_finances was not called"}
-    asked = [q.value for q in quantities(case["question"])] + [float(n) for n in re.findall(r"\d+(?:\.\d+)?", normalise(case["question"]).replace(",", ""))]
+    said = " ".join([*case.get("earlier", []), case["question"]])  # everything the household typed in this conversation
+    asked = [q.value for q in quantities(said)] + [float(n) for n in re.findall(r"\d+(?:\.\d+)?", normalise(said).replace(",", ""))]
     what_if = case.get("what_if") or {}
     household, system = survey.get("household") or {}, survey.get("recommended_system") or {}
-    roof = survey.get("roof") or {}
-    ok_kw = [system.get("system_kw"), roof.get("max_system_kw"), what_if.get("system_kw"), *asked]
-    ok_cost = [household.get("vendor_quote_rupees"), what_if.get("quoted_cost"), *asked]
+    ok_kw = [system.get("system_kw"), largest_system_kw(survey), what_if.get("system_kw"), *asked]
+    ok_cost = [household.get("vendor_quote"), what_if.get("quoted_cost"), *asked]
     odd = []
     for args in calls:
         kw, cost = args.get("system_kw"), args.get("quoted_cost")
@@ -559,6 +635,25 @@ def check_tool_args(case: dict, survey: dict, tool_calls: list[dict]) -> dict:
     return {"pass": not odd, "detail": {"unjustified": odd, "calls": calls}}
 
 
+def check_currency(items: list[Quantity], currency: str) -> dict:
+    """Money is written in the survey's currency: no rupees or lakh for a home in Texas, no dollars for one in Pune."""
+    marked = [q for q in items if q.kind == "money" and q.currency]
+    if not marked or not currency:
+        return {"pass": None, "detail": "no amount in the answer names a currency"}
+    wrong = [{"figure": q.text, "written_as": q.currency, "context": q.context} for q in marked if currency not in CURRENCY_FITS.get(q.currency, {q.currency})]
+    return {"pass": not wrong, "detail": {"survey_currency": currency, "in_another_currency": wrong}}
+
+
+def check_forbidden(case: dict, answer: str) -> dict:
+    """Things homesol has no data on and the advisor would have to recall from memory: a named scheme, a tax credit rate."""
+    banned = case.get("must_not_include") or []
+    if not banned:
+        return {"pass": None, "detail": "nothing is ruled out by name for this case"}
+    text = normalise(answer).lower()
+    found = [term for term in banned if re.search(r"(?<![a-z0-9])" + re.escape(normalise(term).lower()) + r"(?![a-z0-9])", text)]
+    return {"pass": not found, "detail": {"found": found}}
+
+
 def run_all(case: dict, survey: dict, raw_answer: str, tool_calls: list[dict], snap: dict) -> dict:
     truth = build_truth(case, survey, tool_calls, snap)
     answer = visible_answer(raw_answer)
@@ -566,13 +661,15 @@ def run_all(case: dict, survey: dict, raw_answer: str, tool_calls: list[dict], s
     pools = truth["pools"]
     return {
         "language_match": check_language(case, answer),
-        "rupee_figures_traceable": check_numbers(items, MONEY_KINDS, pools),
+        "currency_matches_survey": check_currency(items, snap.get("currency") or ""),
+        "money_figures_traceable": check_numbers(items, MONEY_KINDS, pools),
         "year_figures_traceable": check_numbers(items, YEAR_KINDS, pools),
         "other_figures_traceable": check_numbers(items, OTHER_KINDS, pools),
         "required_facts_present": check_required(case, answer, items, truth),
         "figures_match_their_label": check_labels(answer, pools),
         "monthly_yearly_not_confused": check_period(answer, pools),
         "no_figures_for_unknowns": check_unknowns(case, answer),
+        "nothing_recalled_by_name": check_forbidden(case, answer),
         "links_from_policy_data": check_links(answer, snap),
         "under_150_words": check_length(case, answer),
         "no_markdown": check_markdown(answer),
@@ -586,12 +683,14 @@ def run_all(case: dict, survey: dict, raw_answer: str, tool_calls: list[dict], s
 
 DETERMINISTIC = [
     "language_match",
-    "rupee_figures_traceable",
+    "currency_matches_survey",
+    "money_figures_traceable",
     "year_figures_traceable",
     "other_figures_traceable",
     "figures_match_their_label",
     "monthly_yearly_not_confused",
     "no_figures_for_unknowns",
+    "nothing_recalled_by_name",
     "links_from_policy_data",
     "required_facts_present",
     "under_150_words",

@@ -7,7 +7,9 @@ from typing import Literal
 import boto3
 from pydantic import BaseModel, Field, ValidationError
 
-MODEL_ID = os.environ.get("BEDROCK_VISION_MODEL_ID", "us.amazon.nova-pro-v1:0")
+from .models import VISION_MODEL_ID as MODEL_ID
+from .models import tool_choice
+
 #: The model reports positions on a 0–1000 grid whatever the image size.
 GRID = 1000
 
@@ -108,8 +110,6 @@ def detect(req: DetectRequest) -> list[Obstruction]:
             " (0 is up, 90 is right)."
         )
 
-    # Claude models on Bedrock reject a forced tool; they are told to call it instead.
-    forced = "anthropic" not in MODEL_ID
     client = boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "us-east-1"))
     response = client.converse(
         modelId=MODEL_ID,
@@ -123,7 +123,7 @@ def detect(req: DetectRequest) -> list[Obstruction]:
                 ],
             }
         ],
-        toolConfig={"tools": [TOOL], "toolChoice": {"tool": {"name": "report_obstructions"}} if forced else {"auto": {}}},
+        toolConfig={"tools": [TOOL], "toolChoice": tool_choice(MODEL_ID, "report_obstructions")},
         inferenceConfig={"maxTokens": 4000},
     )
 

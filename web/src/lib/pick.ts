@@ -34,6 +34,7 @@ export async function pickRoofAt(point: LngLat): Promise<void> {
       useStore.setState({
         roof: site.outline,
         site,
+        names: {},
         siteStatus: { state: "idle" },
         floors: Math.max(1, site.surface.floors),
         mode: "idle",

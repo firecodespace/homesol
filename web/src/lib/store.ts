@@ -5,6 +5,7 @@ import { reportVerdict } from "./feedback";
 import type { LngLat } from "./geo/local";
 import type { ImageryInfo } from "./imagery";
 import type { SiteModel } from "./site/model";
+import type { ObstructionName } from "./site/naming";
 import type { HorizonProfile } from "./solar/horizon";
 import type { ShadowHeightEstimate } from "./solar/shadowHeight";
 
@@ -57,6 +58,8 @@ interface State {
   site: SiteModel | null;
   /** Whether the measured model is being fetched, or why there is none. */
   siteStatus: { state: "idle" | "loading" } | { state: "unavailable"; reason: string };
+  /** What each measured obstruction is, by obstruction id, once the vision model has looked. */
+  names: Record<number, ObstructionName>;
   /** Google's photo of the area, shown under the outline so both line up. */
   picture: Picture | null;
   /** Country, state and currency of the property. */
@@ -115,6 +118,7 @@ const NO_PROPERTY = {
   roof: null,
   pick: null,
   site: null,
+  names: {} as Record<number, ObstructionName>,
   siteStatus: { state: "idle" } as State["siteStatus"],
   picture: null,
   place: null,
@@ -154,7 +158,7 @@ export const useStore = create<State>()(
       finishDrawing: () => {
         const { mode, draft, obstructions } = get();
         if (draft.length < 3) return;
-        if (mode === "roof") set({ roof: draft, site: null, mode: "idle", draft: [] });
+        if (mode === "roof") set({ roof: draft, site: null, names: {}, mode: "idle", draft: [] });
         if (mode === "obstruction") {
           const obstruction: Obstruction = {
             id: crypto.randomUUID(),

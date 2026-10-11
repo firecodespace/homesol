@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from . import bill, detect, feedback, finance, google_solar, policy, site, speech, surveys  # noqa: E402
+from . import bill, detect, feedback, finance, google_solar, naming, policy, site, speech, surveys  # noqa: E402
 
 app = FastAPI(title="homesol")
 app.add_middleware(
@@ -143,6 +143,17 @@ def post_site(req: SiteRequest) -> dict:
     except Exception as err:  # network and decoding failures must not break the survey
         return {"available": False, "reason": f"Google's data could not be read: {err}"}
     raise HTTPException(422, "Give a point or an outline.")
+
+
+@app.post("/site/names")
+def post_site_names(req: naming.NamingRequest) -> dict:
+    """What each measured obstruction is, as seen in the photo. Empty when the model cannot be reached."""
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    try:
+        return {"items": [n.model_dump() for n in naming.name_obstructions(req)]}
+    except (ClientError, BotoCoreError) as err:
+        return {"items": [], "reason": str(err)}
 
 
 @app.post("/picture")

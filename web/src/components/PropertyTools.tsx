@@ -180,39 +180,43 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
             Fix its type and height below first if they are off
             {o.measurement ? " (height measured from its shadow)" : " (height is a typical-size guess)"}.
           </p>
-          <div className="mt-2 flex gap-2">
-            <button className="md-button h-8 bg-tertiary px-4 text-on-tertiary" onClick={confirm}>
-              Yes, it&apos;s there
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button className="md-button h-8 bg-tertiary px-3 text-on-tertiary" onClick={confirm}>
+              Yes
             </button>
-            <button className="md-button h-8 border border-tertiary px-4 text-tertiary" onClick={reject}>
-              No, remove it
+            <button className="md-button h-8 border border-tertiary px-3 text-tertiary" onClick={reject}>
+              No, remove
             </button>
           </div>
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 text-sm text-on-surface">
-        <span>Height</span>
-        <input
-          type="number"
-          min={0}
-          step={0.5}
-          value={o.heightM ?? ""}
-          placeholder="?"
-          onChange={(e) =>
-            updateObstruction(o.id, { heightM: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })
-          }
-          className="md-field-dense w-20 text-right"
-        />
-        <span>m above</span>
-        <select
-          value={o.reference}
-          onChange={(e) => updateObstruction(o.id, { reference: e.target.value as Obstruction["reference"] })}
-          className="md-field-dense"
-        >
-          <option value="ground">the ground</option>
-          <option value="roof">my roof</option>
-        </select>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="md-label">Height in metres</span>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            value={o.heightM ?? ""}
+            placeholder="?"
+            onChange={(e) =>
+              updateObstruction(o.id, { heightM: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })
+            }
+            className="md-field-dense mt-1 w-full"
+          />
+        </label>
+        <label className="block">
+          <span className="md-label">Measured from</span>
+          <select
+            value={o.reference}
+            onChange={(e) => updateObstruction(o.id, { reference: e.target.value as Obstruction["reference"] })}
+            className="md-field-dense mt-1 w-full"
+          >
+            <option value="ground">the ground</option>
+            <option value="roof">my roof</option>
+          </select>
+        </label>
       </div>
 
       {measuring ? (
@@ -225,7 +229,7 @@ function ObstructionCard({ index, obstruction: o }: { index: number; obstruction
           </button>
         </div>
       ) : (
-        <button className={`${secondary} mt-3`} onClick={() => startMeasuring(o.id)}>
+        <button className={`${secondary} mt-3 w-full`} onClick={() => startMeasuring(o.id)}>
           {m ? "Re-measure from shadow" : "Measure height from its shadow"}
         </button>
       )}
@@ -327,8 +331,8 @@ export function ObstructionsStep() {
       <p className="text-sm text-on-surface-variant">
         Outline anything that could shade the roof: taller neighbours, trees, water tanks, stair rooms.
       </p>
-      <button className={secondary} disabled={detecting || mode !== "idle"} onClick={detect}>
-        {detecting ? "Looking at the satellite image…" : "Find obstructions for me"}
+      <button className={`${secondary} w-full`} disabled={detecting || mode !== "idle"} onClick={detect}>
+        {detecting ? "Looking at the satellite image…" : "Suggest obstructions (experimental)"}
       </button>
       {detectNote && <p className={`text-xs ${detectNote.ok ? "text-on-surface-variant" : "text-error"}`}>{detectNote.text}</p>}
       <p className="text-xs text-on-surface-variant">
@@ -345,7 +349,7 @@ export function ObstructionsStep() {
       {mode === "obstruction" ? (
         <DrawingControls canFinish hint="Click around the outline of the object, then close the shape." />
       ) : (
-        <button className={outlined} disabled={mode !== "idle"} onClick={() => startDrawing("obstruction")}>
+        <button className={`${outlined} w-full`} disabled={mode !== "idle"} onClick={() => startDrawing("obstruction")}>
           + Add one by hand
         </button>
       )}

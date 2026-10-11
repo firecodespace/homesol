@@ -161,7 +161,7 @@ describe("layoutPanels", () => {
     for (const panel of layout.panels) for (const corner of panel.corners) expect(pointInPolygon(lngLatToGrid(m, corner), tank)).toBe(false);
   });
 
-  it("ranks positions by sun and counts only the good ones", () => {
+  it("puts the good positions first and counts only those", () => {
     const m = roofSite(MUMBAI);
     // The western half of the roof is poorly lit.
     for (let r = 30; r < 50; r++) for (let c = 30; c < 40; c++) m.access[r * 80 + c] = 0.5;
@@ -169,6 +169,27 @@ describe("layoutPanels", () => {
     expect(layout.panels[0].access).toBeGreaterThan(layout.panels[layout.panels.length - 1].access);
     expect(layout.good).toBeLessThan(layout.panels.length);
     expect(layout.panels.slice(0, layout.good).every((p) => p.access >= GOOD_ACCESS)).toBe(true);
+    expect(layout.panels.slice(layout.good).every((p) => p.access < GOOD_ACCESS)).toBe(true);
+  });
+
+  it("grows a system as one block, each panel next to the ones before it", () => {
+    // Open land with uniform sun: nothing favours one position, so the block must come from the ordering.
+    const m = site(MUMBAI, 120, (model, set) => {
+      set(10, 110, 10, 110, 0, 1);
+      model.surface = { ...model.surface, kind: "ground", height_m: 0, floors: 0 };
+    });
+    const layout = layoutPanels(m);
+    expect(layout.good).toBeGreaterThan(100);
+    const frame = localFrame(MUMBAI);
+    const centre = (i: number) => {
+      const xy = layout.panels[i].corners.map(frame.toXY);
+      return [xy.reduce((s, p) => s + p[0], 0) / 4, xy.reduce((s, p) => s + p[1], 0) / 4];
+    };
+    for (let i = 1; i < 12; i++) {
+      const [x, y] = centre(i);
+      const nearest = Math.min(...Array.from({ length: i }, (_, j) => Math.hypot(x - centre(j)[0], y - centre(j)[1])));
+      expect(nearest).toBeLessThan(2.8);
+    }
   });
 
   it("faces panels north in the southern hemisphere", () => {

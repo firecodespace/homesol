@@ -6,19 +6,21 @@ import os
 import boto3
 from pydantic import BaseModel, Field
 
+from .models import VISION_MODEL_ID as MODEL_ID
+from .models import tool_choice
+
 from . import policy
 
-MODEL_ID = os.environ.get("BEDROCK_VISION_MODEL_ID", "us.amazon.nova-pro-v1:0")
 
-SYSTEM = """You read Indian household electricity bills for a rooftop solar calculator.
+SYSTEM = """You read household electricity bills for a rooftop solar calculator. Most are from India; some are from other countries.
 
-You are given a photo or scan of one bill. Bills are often bilingual (English with Hindi, Marathi, Kannada or Gujarati) and photographed at an angle. Report only what is printed on the bill.
+You are given a photo or scan of one bill. Bills are often bilingual (in India, English with Hindi, Marathi, Kannada or Gujarati) and photographed at an angle. Report only what is printed on the bill.
 
 - units_consumed: the units (kWh) billed for this billing period. This is the consumption figure, usually the difference between the current and previous meter readings, and not either reading itself.
-- bill_amount: the charges for this billing period in rupees, before arrears, late fees or previous dues are added. If the bill shows only one total, use it.
+- bill_amount: the charges for this billing period in the bill's own currency, before arrears, late fees or previous dues are added. If the bill shows only one total, use it.
 - billing_days: the number of days the bill covers, if dates or a day count are printed.
 - distributor: the name of the electricity company that issued the bill, as printed.
-- state: the Indian state, if it can be read from the bill.
+- state: the state or province, if it can be read from the bill.
 - sanctioned_load_kw: the sanctioned or connected load in kW, if printed.
 - monthly_history: units for earlier months if the bill prints a consumption history, most recent first.
 
@@ -118,7 +120,6 @@ def to_monthly(raw: dict) -> BillReading:
 
 def read_bill(req: BillRequest) -> BillReading:
     client = boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "us-east-1"))
-    forced = "anthropic" not in MODEL_ID
     response = client.converse(
         modelId=MODEL_ID,
         system=[{"text": SYSTEM}],
@@ -131,7 +132,7 @@ def read_bill(req: BillRequest) -> BillReading:
                 ],
             }
         ],
-        toolConfig={"tools": [TOOL], "toolChoice": {"tool": {"name": "report_bill"}} if forced else {"auto": {}}},
+        toolConfig={"tools": [TOOL], "toolChoice": tool_choice(MODEL_ID, "report_bill")},
         inferenceConfig={"maxTokens": 1000},
     )
     blocks = response["output"]["message"]["content"]

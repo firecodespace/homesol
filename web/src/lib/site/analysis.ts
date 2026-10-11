@@ -1,5 +1,5 @@
-import type { LngLat } from "../geo/local";
-import { surfaceCentre, type SiteModel } from "./model";
+import { pointInPolygon, type LngLat } from "../geo/local";
+import { lngLatToGrid, surfaceCentre, type SiteModel } from "./model";
 import { GOOD_ACCESS, layoutPanels, PANEL_WATTS, type PanelLayout } from "./panels";
 import { analyseShade, shadowGrid, type ShadeReport, type ShadowGrid } from "./shadows";
 
@@ -20,6 +20,8 @@ export interface Analysis {
   grid: ShadowGrid | null;
   /** A year of simulated shadows on the surface; null when the site was not measured. */
   shade: ShadeReport | null;
+  /** The same, over just the places panels would go. */
+  panelShade: ShadeReport | null;
 }
 
 export function analyse(model: SiteModel): Analysis {
@@ -41,6 +43,23 @@ export function analyse(model: SiteModel): Analysis {
   const grid = shadowGrid(model);
   const tested = grid ? Uint8Array.from(grid.labels, (label) => (label === 1 ? 1 : 0)) : null;
 
+  // Mark the grid pixels under the good panel positions.
+  let underPanels: Uint8Array | null = null;
+  if (grid && layout.good) {
+    underPanels = new Uint8Array(grid.rows * grid.cols);
+    for (const panel of layout.panels.slice(0, layout.good)) {
+      const corners = panel.corners.map((p) => lngLatToGrid(model, p).map((v) => v / grid.scale) as [number, number]);
+      const cols = corners.map((c) => c[0]);
+      const rows = corners.map((c) => c[1]);
+      for (let r = Math.floor(Math.min(...rows)); r <= Math.ceil(Math.max(...rows)); r++) {
+        for (let c = Math.floor(Math.min(...cols)); c <= Math.ceil(Math.max(...cols)); c++) {
+          if (r < 0 || c < 0 || r >= grid.rows || c >= grid.cols) continue;
+          if (pointInPolygon([c + 0.5, r + 0.5], corners)) underPanels[r * grid.cols + c] = 1;
+        }
+      }
+    }
+  }
+
   return {
     model,
     at,
@@ -51,5 +70,6 @@ export function analyse(model: SiteModel): Analysis {
     capacityKw: (layout.good * PANEL_WATTS) / 1000,
     grid,
     shade: grid && tested ? analyseShade(model, grid, tested, at) : null,
+    panelShade: grid && underPanels ? analyseShade(model, grid, underPanels, at) : null,
   };
 }

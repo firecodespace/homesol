@@ -26,6 +26,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${roboto.variable} ${devanagari.variable} h-full antialiased`}
     >
+      <head>
+        {/* Icons used across the app. */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font, @next/next/google-font-display -- root layout, so it applies to every page; icons must not flash as text */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block"
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

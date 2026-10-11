@@ -70,7 +70,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const post = <T>(path: string, payload: unknown, signal?: AbortSignal) =>
+export const post = <T>(path: string, payload: unknown, signal?: AbortSignal) =>
   call<T>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

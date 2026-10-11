@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { readBill, type BillReading } from "@/lib/api";
 import { useStore } from "@/lib/store";
-import { fmt, rupees, secondary } from "./ui";
+import { fmt, Icon, money } from "./ui";
 
 const MAX_SIDE = 1800;
 
@@ -44,8 +44,9 @@ export default function BillUpload() {
   };
 
   const read = typeof state === "object" && "read" in state ? state.read : null;
+  const currency = useStore((s) => s.place?.currency ?? "INR");
   return (
-    <div className="md-card-outlined">
+    <div>
       <input
         ref={input}
         type="file"
@@ -54,19 +55,20 @@ export default function BillUpload() {
         aria-label="Photo of your electricity bill"
         onChange={(e) => void onFile(e.target.files?.[0])}
       />
-      <button className={secondary} disabled={state === "reading"} onClick={() => input.current?.click()}>
-        {state === "reading" ? "Reading your bill…" : "Fill this in from a photo of my bill"}
+      <button className="md-tonal w-full" disabled={state === "reading"} onClick={() => input.current?.click()}>
+        <Icon name="photo_camera" className="text-[18px]" />
+        {state === "reading" ? "Reading your bill…" : "Read it from a photo of my bill"}
       </button>
-      <p className="mt-2 text-xs text-on-surface-variant">
+      <p className="md-supporting mt-2">
         The photo is read once and not stored. Your name, address and consumer number are not kept.
       </p>
       {typeof state === "object" && "error" in state && <p className="mt-2 text-xs text-error">{state.error}</p>}
       {read && (
-        <p className="mt-2 text-xs text-on-surface">
+        <p className="mt-2 rounded-md bg-tertiary-container p-3 text-xs leading-4 text-on-tertiary-container">
           Read from the bill:{" "}
           {[
             read.units_per_month && `${fmt(read.units_per_month)} units a month`,
-            read.bill_per_month && `${rupees(read.bill_per_month)} a month`,
+            read.bill_per_month && `${money(read.bill_per_month, currency)} a month`,
             read.distributor,
             read.sanctioned_load_kw && `${fmt(read.sanctioned_load_kw, 1)} kW sanctioned load`,
           ]
