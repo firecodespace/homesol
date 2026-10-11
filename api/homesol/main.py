@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from . import bill, detect, feedback, finance, policy, speech, surveys  # noqa: E402
+from . import bill, detect, feedback, finance, google_solar, policy, speech, surveys  # noqa: E402
 
 app = FastAPI(title="homesol")
 app.add_middleware(
@@ -48,6 +48,16 @@ class TranscribeRequest(BaseModel):
     #: Base64 of 16 kHz, 16-bit, mono PCM audio.
     audio: str = Field(min_length=100)
     language: str | None = None
+
+
+class MeasuredSunRequest(BaseModel):
+    #: Roof corners as [lng, lat] pairs.
+    roof: list[tuple[float, float]] = Field(min_length=3, max_length=60)
+
+
+class RoofAtRequest(BaseModel):
+    lng: float = Field(ge=-180, le=180)
+    lat: float = Field(ge=-90, le=90)
 
 
 class SaveSurveyRequest(BaseModel):
@@ -109,6 +119,39 @@ def get_survey(code: str) -> dict:
     if survey is None:
         raise HTTPException(404, "No saved survey with that code. It may have expired.")
     return {"survey": survey}
+
+
+@app.post("/measured-sun")
+def post_measured_sun(req: MeasuredSunRequest) -> dict:
+    """Google's measured sun map for a roof, or `available: false` where Google has no data."""
+    try:
+        return {"available": True, **google_solar.fetch(req.roof)}
+    except google_solar.SolarDataUnavailable as err:
+        return {"available": False, "reason": str(err)}
+    except Exception as err:  # network and decoding failures must not break the survey
+        return {"available": False, "reason": f"Google's data could not be read: {err}"}
+
+
+@app.post("/picture")
+def post_picture(req: RoofAtRequest) -> dict:
+    """Google's photo of the area around a point, so taps land on the imagery the measurements use."""
+    try:
+        return {"available": True, "picture": google_solar.area_picture(req.lng, req.lat)}
+    except google_solar.SolarDataUnavailable as err:
+        return {"available": False, "reason": str(err)}
+    except Exception as err:
+        return {"available": False, "reason": f"Google's data could not be read: {err}"}
+
+
+@app.post("/roof-at")
+def post_roof_at(req: RoofAtRequest) -> dict:
+    """The roof under a tapped map point, outlined from Google's height data."""
+    try:
+        return {"available": True, **google_solar.roof_at(req.lng, req.lat)}
+    except google_solar.SolarDataUnavailable as err:
+        return {"available": False, "reason": str(err)}
+    except Exception as err:  # network and decoding failures must not break the survey
+        return {"available": False, "reason": f"Google's data could not be read: {err}"}
 
 
 @app.post("/bill")

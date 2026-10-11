@@ -1,0 +1,64 @@
+cases 44  answered 44  errored 0
+latency  median 7.07s  p90 9.42s  max 13.03s
+cases calling each tool: site_analyst 5, policy_finance_analyst 18, lookup_policy 8, estimate_finances 15; none at all 21
+cases passing every deterministic check: 38/44
+
+DETERMINISTIC CHECKS              pass   rate  n/a      en    hi hingl
+language_match                   43/44    98%    0    100%  100%   90%
+rupee_figures_traceable          28/29    97%   15     94%  100%  100%
+year_figures_traceable           20/21    95%   23     92%  100%  100%
+other_figures_traceable          25/25   100%   19    100%  100%  100%
+figures_match_their_label        28/29    97%   15    100%   83%  100%
+monthly_yearly_not_confused      18/18   100%   26    100%  100%  100%
+no_figures_for_unknowns            2/3    67%   41     67%     -     -
+links_from_policy_data             6/6   100%   38    100%     -  100%
+required_facts_present           30/30   100%   14    100%  100%  100%
+under_150_words                  41/43    95%    1     96%  100%   90%
+no_markdown                      44/44   100%    0    100%  100%  100%
+no_leaked_reasoning              44/44   100%    0    100%  100%  100%
+no_internal_names                42/44    96%    0    100%   89%   90%
+unverified_data_flagged            0/0      -   44       -     -     -
+what_if_recalculated               4/4   100%   40    100%     -  100%
+tool_arguments_justified         14/15    93%   29     88%  100%  100%
+
+MODEL-GRADED CRITERIA             pass   rate  n/a      en    hi hingl
+first_sentence_answers           34/44    77%    0     72%   89%   80%
+layperson_clear                  31/44    70%    0     72%   67%   70%
+careful_handling                 13/14    93%    0     90%  100%  100%
+flags_unverified                   0/0      -    0       -     -     -
+
+FAILURES
+- mh-worth-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"व्हीलिंग शुल्क\", \"पेबैक अवधि\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"kWh\", \"kW\"]}"
+- mh-whatif-4kw-en [graded] first_sentence_answers: "No answer or figure given in first sentence."
+- mh-whatif-4kw-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"kW\", \"subsidy\"]}"
+- mh-savings-hi [det] figures_match_their_label: {"mislabelled": [{"figure": "₹1.60", "announced_as": "savings", "is_actually": ["baseline.notes", "policy.discoms.msedcl.tariff.includes"], "sentence": "यह बचत ऊर्जा शुल्क और हर यूनिट पर ₹1.60 का व्हीलिंग शुल्क के आधार पर है।"}], "sentences_checked": 2}
+- mh-savings-hi [det] no_internal_names: {"mentions": ["site_analyst"]}
+- mh-savings-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"व्हीलिंग शुल्क\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- mh-surplus-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"MSEDCL (Mahavitaran)\"]}"
+- mh-apply-en [graded] layperson_clear: "Unexplained term 'net metering' used."
+- dl-worth-hinglish [det] under_150_words: {"words": 183, "limit": 150}
+- dl-worth-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- dl-whatif-3kw-en [graded] layperson_clear: "{\"unexplained_terms\": [\"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"kW\"]}"
+- dl-surplus-en [graded] first_sentence_answers: "Rate per unit not specified."
+- dl-surplus-en [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"DERC\"]}"
+- dl-apply-hi [graded] first_sentence_answers: "Leads in without directly answering the question."
+- dl-detail-en [graded] first_sentence_answers: "First sentence is a lead-in to the answer."
+- dl-detail-en [graded] layperson_clear: "{\"unexplained_terms\": [\"surplus credit\", \"gross cost\", \"net cost\", \"payback period\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"net metering\", \"kWh\", \"kWp\", \"DISCOM\", \"tariff slab\", \"inverter\", \"feed-in tariff\", \"wheeling charge\"]}"
+- dl-shade-hinglish [graded] first_sentence_answers: "Does not directly answer the question about shade."
+- ka-whatif-3kw-hinglish [graded] first_sentence_answers: "Gives cost but not payback period in first sentence."
+- ka-whatif-3kw-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net cost\", \"payback period\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": []}"
+- ka-bill-after-en [graded] first_sentence_answers: "Drop a lot is vague, no specific figures given."
+- ka-loan-en [det] rupee_figures_traceable: {"untraced": [{"text": "970", "value": 970.0, "kind": "money", "context": "an, the EMI for Rs 49,500 would be around Rs 970 per month. However, thes"}]}
+- ka-loan-en [det] year_figures_traceable: {"untraced": [{"text": "5", "value": 5.0, "kind": "years", "context": "y), choose a loan tenure (common tenures are 5 to 10 years), and the in"}, {"text": "10 years", "value": 10.0, "kind": "years", "context": "hoose a loan tenure (common tenures are 5 to 10 years), and the interest rate"}, {"text": "5-year", "value": 5.0, "kind": "years", "context": "e, if a bank offers a 7% interest rate for a 5-year loan, the EMI for Rs 49,"}]}
+- ka-loan-en [det] no_figures_for_unknowns: {"figures_given_for_something_with_no_data": [{"figure": "7%", "sentence": "For example, if a bank offers a 7% interest rate for a 5-year loan, the EMI for Rs 49,500 would be around Rs 970 per month."}]}
+- ka-loan-en [det] under_150_words: {"words": 153, "limit": 150}
+- ka-loan-en [graded] first_sentence_answers: "Does not provide exact EMI or interest rate."
+- ka-loan-en [graded] careful_handling: "Example EMI and interest rate provided."
+- un-subsidy-hinglish [det] language_match: {"expected": "hinglish", "label": "en", "devanagari_share": 0.0, "romanised_hindi_share": 0.0, "sentences_in_another_language": [{"sentence": "The exact subsidy amount for this household under the PM Surya Ghar:", "looks_like": "en"}, {"sentence": "Muft Bijli Yojana is Rs 63,600 for a 2.2 kW system.", "looks_like": "en"}, {"sentence": "There are no additional state benefits mentioned in the policy lookup for the distributor.", "looks_like": "en"}, {"sentence": "The central subsidy is verified and can be applied for at   (  The distributor's tariff data is not available, so I cannot confirm any
+- un-payback-hi [graded] layperson_clear: "{\"unexplained_terms\": [\"पेबैक पीरियड: 3.0 साल\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": [\"₹68,400\", \"₹22,800\"]}"
+- rl-worth-hinglish [graded] layperson_clear: "{\"unexplained_terms\": [\"net metering\", \"gross cost\", \"net cost\", \"payback period\"], \"data_dump\": true, \"listed_by_grader_but_not_counted\": []}"
+- qh-fair-en [graded] first_sentence_answers: "Quote is higher than usual market price range."
+- qh-fair-hinglish [det] no_internal_names: {"mentions": ["tool"]}
+- qh-payback-en [det] tool_arguments_justified: {"unjustified": [{"quoted_cost": 150000}]}
+- qh-vendor-en [graded] first_sentence_answers: "Lead-in, answer arrives later."
+- qh-vendor-en [graded] layperson_clear: "{\"unexplained_terms\": [\"inverter\"], \"data_dump\": false, \"listed_by_grader_but_not_counted\": [\"MNRE\"]}"

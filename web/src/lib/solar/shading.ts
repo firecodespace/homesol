@@ -43,6 +43,22 @@ export interface ShadingResult {
   capacityKw: number;
 }
 
+/** Roll per-cell solar access up into the roof-level figures. */
+export function summariseCells(cells: ShadingCell[], cellSizeM: number, roofAreaM2: number): ShadingResult {
+  const cellArea = cellSizeM * cellSizeM;
+  const usable = cells.filter((c) => c.access >= USABLE_ACCESS);
+  const usableAreaM2 = Math.min(roofAreaM2, usable.length * cellArea);
+  return {
+    cells,
+    cellSizeM,
+    roofAreaM2,
+    usableAreaM2,
+    meanAccess: cells.length ? cells.reduce((s, c) => s + c.access, 0) / cells.length : 0,
+    usableAccess: usable.length ? usable.reduce((s, c) => s + c.access, 0) / usable.length : 0,
+    capacityKw: usableAreaM2 / AREA_PER_KW_M2,
+  };
+}
+
 function heightAboveRoof(o: ShadingObstruction, roofHeightM: number): number {
   return o.reference === "ground" ? o.heightM - roofHeightM : o.heightM;
 }
@@ -130,19 +146,7 @@ export function analyseShading(
     }
   }
 
-  const cellArea = cellSizeM * cellSizeM;
-  const usable = cells.filter((c) => c.access >= USABLE_ACCESS);
-  const usableAreaM2 = usable.length * cellArea;
-  const meanAccess = cells.length ? cells.reduce((s, c) => s + c.access, 0) / cells.length : 0;
-  return {
-    cells,
-    cellSizeM,
-    roofAreaM2,
-    usableAreaM2,
-    meanAccess,
-    usableAccess: usable.length ? usable.reduce((s, c) => s + c.access, 0) / usable.length : 0,
-    capacityKw: usableAreaM2 / AREA_PER_KW_M2,
-  };
+  return summariseCells(cells, cellSizeM, roofAreaM2);
 }
 
 function convexHull(points: XY[]): XY[] {

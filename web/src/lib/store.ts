@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { reportVerdict } from "./feedback";
+import type { ChatTurn, Picture } from "./api";
 import type { LngLat } from "./geo/local";
 import type { ImageryInfo } from "./imagery";
 import type { HorizonProfile } from "./solar/horizon";
@@ -8,7 +9,8 @@ import type { ShadowHeightEstimate } from "./solar/shadowHeight";
 
 export const FLOOR_HEIGHT_M = 3;
 
-export type Mode = "idle" | "roof" | "obstruction" | "measure";
+/** `pick` waits for a tap on the roof to outline automatically; the others draw by hand. */
+export type Mode = "idle" | "pick" | "roof" | "obstruction" | "measure";
 export type ObstructionKind = "building" | "tree" | "tank" | "other";
 
 export interface ShadowMeasurement {
@@ -44,6 +46,18 @@ interface State {
   /** Obstruction whose shadow is being measured. */
   measureTarget: string | null;
   roof: LngLat[] | null;
+  /** False until the saved survey has been read back; nothing may write state before then. */
+  hydrated: boolean;
+  /** Progress of finding a roof from a tap. */
+  pick: { state: "finding"; point: LngLat } | { state: "failed"; message: string } | null;
+  /** Google's photo of the property, shown under the outline so both line up. */
+  picture: Picture | null;
+  /** The conversation with the advisor. Asked from the tools panel, read in the results panel. */
+  chat: { turns: ChatTurn[]; waiting: boolean; error: string | null };
+  /** Link and QR code from the last save, if any. */
+  shared: { url: string; qr: string } | null;
+  /** Whether the roof outline was found automatically, as opposed to drawn by hand. */
+  autoFound: boolean;
   floors: number;
   obstructions: Obstruction[];
   /** Skyline traced from the roof with a phone, if the user has scanned one. */
@@ -96,6 +110,12 @@ export const useStore = create<State>()(
       draft: [],
       measureTarget: null,
       roof: null,
+      hydrated: false,
+      pick: null,
+      picture: null,
+      chat: { turns: [], waiting: false, error: null },
+      shared: null,
+      autoFound: false,
       floors: 2,
       obstructions: [],
       horizon: null,
@@ -112,7 +132,7 @@ export const useStore = create<State>()(
       measureStatus: null,
 
       startDrawing: (mode) =>
-        set({ mode, draft: [], measureTarget: null, measureStatus: null }),
+        set({ mode, draft: [], measureTarget: null, measureStatus: null, pick: null }),
       startMeasuring: (id) =>
         set({
           mode: "measure",
@@ -125,7 +145,7 @@ export const useStore = create<State>()(
       finishDrawing: () => {
         const { mode, draft, obstructions } = get();
         if (draft.length < 3) return;
-        if (mode === "roof") set({ roof: draft, mode: "idle", draft: [] });
+        if (mode === "roof") set({ roof: draft, mode: "idle", draft: [], autoFound: false });
         if (mode === "obstruction") {
           const obstruction: Obstruction = {
             id: crypto.randomUUID(),
@@ -147,6 +167,11 @@ export const useStore = create<State>()(
       clearRoof: () =>
         set({
           roof: null,
+          pick: null,
+          picture: null,
+          chat: { turns: [], waiting: false, error: null },
+          shared: null,
+          autoFound: false,
           obstructions: [],
           horizon: null,
           discomId: null,

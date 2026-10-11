@@ -1,0 +1,12 @@
+{
+ "git_commit": "2a84957",
+ "uncommitted_under_api": [],
+ "sha256": {
+  "homesol/agents.py": "d37560b4d9d36eff",
+  "homesol/finance.py": "ffb231d91abb5afa",
+  "homesol/policy.py": "eabfb917b59f35fb",
+  "homesol/main.py": "2a139d6d03dc5207",
+  "data/policies.json": "6986570e04948300"
+ },
+ "note": "Read when the run starts. If these files are edited while a run is in progress, the run still uses what was loaded at the start."
+}

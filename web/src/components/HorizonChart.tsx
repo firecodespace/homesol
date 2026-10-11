@@ -65,12 +65,12 @@ export default function HorizonChart({ profile, at, pointer }: Props) {
           <circle cx={pointer.azimuth} cy={y(pointer.elevation)} r={4} fill="none" stroke="#ffffff" strokeWidth={1.5} />
         )}
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+      <div className="mt-1 flex justify-between text-[10px] text-on-surface-variant">
         {["N", "E", "S", "W", "N"].map((label, i) => (
           <span key={i}>{label}</span>
         ))}
       </div>
-      <div className="mt-1 flex gap-3 text-[10px] text-slate-400">
+      <div className="mt-1 flex gap-3 text-[10px] text-on-surface-variant">
         {SUN_PATHS.map((p) => (
           <span key={p.month} className="flex items-center gap-1">
             <span className="inline-block h-0.5 w-3" style={{ background: p.color }} />
@@ -78,7 +78,7 @@ export default function HorizonChart({ profile, at, pointer }: Props) {
           </span>
         ))}
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2 w-3 border border-sky-400 bg-slate-900" />
+          <span className="inline-block h-2 w-3 border border-secondary bg-surface-container" />
           Blocked sky
         </span>
       </div>

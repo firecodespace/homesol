@@ -3,6 +3,7 @@
 import json
 import os
 import re
+from urllib.parse import urlparse
 
 from strands import Agent, tool
 from strands.models import BedrockModel
@@ -127,8 +128,8 @@ def fact_sheet(survey: dict) -> str:
     return "\n".join(lines)
 
 
-def known_links() -> set[str]:
-    """Every source link in the policy data; the only links an answer may contain."""
+def known_hosts() -> set[str]:
+    """Websites the policy data cites; an answer may link only to these."""
     found: set[str] = set()
 
     def walk(node) -> None:
@@ -139,27 +140,33 @@ def known_links() -> set[str]:
             for value in node:
                 walk(value)
         elif isinstance(node, str) and node.startswith("http"):
-            found.add(node.rstrip("/"))
+            found.add(_host(node))
 
     walk(policy.load())
     return found
+
+
+def _host(url: str) -> str:
+    return (urlparse(url).hostname or "").removeprefix("www.")
 
 
 def clean_answer(text: str) -> str:
     """Remove what must never reach the household: reasoning tags, markdown marks, made-up links."""
     text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
     text = re.sub(r"</?(thinking|response|answer)>", "", text)
-    allowed = known_links()
+    allowed = known_hosts()
 
     def link(match: re.Match) -> str:
         label, url = match.group(1), match.group(2)
-        return f"{label} ({url})" if url.rstrip("/") in allowed else label
+        return f"{label} ({url})" if _host(url) in allowed else label
 
     text = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", link, text)
-    text = re.sub(r"https?://[^\s)]+", lambda m: m.group(0) if m.group(0).rstrip("/.,") in allowed else "", text)
+    text = re.sub(r"\(?https?://[^\s)]+\)?", lambda m: m.group(0) if _host(m.group(0).strip("()")) in allowed else "", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
     text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
     text = re.sub(r"^\s*\*\s+", "- ", text, flags=re.MULTILINE)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r" +([.,])", r"\1", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
@@ -226,7 +233,7 @@ Shape of the answer: the first sentence answers the question directly, for examp
 
 You have two specialists. Ask site_analyst about the roof, shade and panel placement. Ask policy_finance_analyst about subsidy, tariffs, cost, savings and payback. Both already have this household's survey and figures, so just ask them the question. The household's facts are also given to you directly, each labelled with what it is and whether it is per month or per year: copy figures with their labels, and never move a figure to a different meaning (a price is not a saving; a yearly bill is not a monthly bill). When the facts list a caveat that bears on your answer, pass it on in a few words.
 
-What you do not have: if the answer needs a figure that is not in the facts or a specialist's reply (battery prices, panel brands, loan rates, returns on other investments), say plainly that homesol does not have that information, and do not estimate it. Do not compare solar with fixed deposits, mutual funds or any other investment, and do not tell the household what to do with their money; give the solar figures and leave the choice to them. If the question has nothing to do with their home's electricity or solar, say that is outside what you can help with. Include a web link only if it appears in the facts or a specialist's reply. Never mention your specialists, tools or internal ids.
+What you do not have: if the answer needs a figure that is not in the facts or a specialist's reply (battery prices, panel brands, loan interest rates or EMIs, returns on other investments), say plainly that homesol does not have that information, and do not estimate it or give an illustrative example with made-up numbers. Do not compare solar with fixed deposits, mutual funds or any other investment, and do not tell the household what to do with their money; give the solar figures and leave the choice to them. If the question has nothing to do with their home's electricity or solar, say that is outside what you can help with. Include a web link only if it appears in the facts or a specialist's reply. Never mention your specialists, tools or internal ids.
 
 When a vendor's quote is outside the usual range, say so directly, with the percentage from the facts.
 

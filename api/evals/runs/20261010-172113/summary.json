@@ -1,0 +1,317 @@
+{
+ "code_under_test": {
+  "git_commit": "2a84957",
+  "uncommitted_under_api": [],
+  "sha256": {
+   "homesol/agents.py": "d37560b4d9d36eff",
+   "homesol/finance.py": "ffb231d91abb5afa",
+   "homesol/policy.py": "eabfb917b59f35fb",
+   "homesol/main.py": "2a139d6d03dc5207",
+   "data/policies.json": "6986570e04948300"
+  },
+  "note": "Read when the run starts. If these files are edited while a run is in progress, the run still uses what was loaded at the start."
+ },
+ "cases": 44,
+ "answered": 44,
+ "errored": [],
+ "latency_s": {
+  "median": 7.07,
+  "p90": 9.42,
+  "max": 13.03
+ },
+ "tools": {
+  "site_analyst": 5,
+  "policy_finance_analyst": 18,
+  "lookup_policy": 8,
+  "estimate_finances": 15
+ },
+ "no_tool_called": [
+  "mh-worth-en",
+  "mh-subsidy-hinglish",
+  "mh-payback-en",
+  "mh-payback-hi",
+  "mh-savings-hi",
+  "mh-netmetering-hinglish",
+  "mh-battery-en",
+  "mh-offtopic-en",
+  "dl-subsidy-en",
+  "dl-payback-hinglish",
+  "dl-netmetering-hi",
+  "dl-invest-en",
+  "dl-apply-hi",
+  "ka-subsidy-hi",
+  "ka-payback-en",
+  "ka-bill-after-en",
+  "ka-loan-en",
+  "un-tariff-en",
+  "un-payback-hi",
+  "rl-whatif-5kw-hinglish",
+  "qh-vendor-en"
+ ],
+ "deterministic": {
+  "language_match": {
+   "passed": 43,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.977,
+   "failed_ids": [
+    "un-subsidy-hinglish"
+   ]
+  },
+  "rupee_figures_traceable": {
+   "passed": 28,
+   "scored": 29,
+   "not_applicable": 15,
+   "rate": 0.966,
+   "failed_ids": [
+    "ka-loan-en"
+   ]
+  },
+  "year_figures_traceable": {
+   "passed": 20,
+   "scored": 21,
+   "not_applicable": 23,
+   "rate": 0.952,
+   "failed_ids": [
+    "ka-loan-en"
+   ]
+  },
+  "other_figures_traceable": {
+   "passed": 25,
+   "scored": 25,
+   "not_applicable": 19,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "figures_match_their_label": {
+   "passed": 28,
+   "scored": 29,
+   "not_applicable": 15,
+   "rate": 0.966,
+   "failed_ids": [
+    "mh-savings-hi"
+   ]
+  },
+  "monthly_yearly_not_confused": {
+   "passed": 18,
+   "scored": 18,
+   "not_applicable": 26,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_figures_for_unknowns": {
+   "passed": 2,
+   "scored": 3,
+   "not_applicable": 41,
+   "rate": 0.667,
+   "failed_ids": [
+    "ka-loan-en"
+   ]
+  },
+  "links_from_policy_data": {
+   "passed": 6,
+   "scored": 6,
+   "not_applicable": 38,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "required_facts_present": {
+   "passed": 30,
+   "scored": 30,
+   "not_applicable": 14,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "under_150_words": {
+   "passed": 41,
+   "scored": 43,
+   "not_applicable": 1,
+   "rate": 0.953,
+   "failed_ids": [
+    "dl-worth-hinglish",
+    "ka-loan-en"
+   ]
+  },
+  "no_markdown": {
+   "passed": 44,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_leaked_reasoning": {
+   "passed": 44,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "no_internal_names": {
+   "passed": 42,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.955,
+   "failed_ids": [
+    "mh-savings-hi",
+    "qh-fair-hinglish"
+   ]
+  },
+  "unverified_data_flagged": {
+   "passed": 0,
+   "scored": 0,
+   "not_applicable": 44,
+   "rate": null,
+   "failed_ids": []
+  },
+  "what_if_recalculated": {
+   "passed": 4,
+   "scored": 4,
+   "not_applicable": 40,
+   "rate": 1.0,
+   "failed_ids": []
+  },
+  "tool_arguments_justified": {
+   "passed": 14,
+   "scored": 15,
+   "not_applicable": 29,
+   "rate": 0.933,
+   "failed_ids": [
+    "qh-payback-en"
+   ]
+  }
+ },
+ "graded": {
+  "first_sentence_answers": {
+   "passed": 34,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.773,
+   "failed_ids": [
+    "mh-whatif-4kw-en",
+    "dl-surplus-en",
+    "dl-apply-hi",
+    "dl-detail-en",
+    "dl-shade-hinglish",
+    "ka-whatif-3kw-hinglish",
+    "ka-bill-after-en",
+    "ka-loan-en",
+    "qh-fair-en",
+    "qh-vendor-en"
+   ]
+  },
+  "layperson_clear": {
+   "passed": 31,
+   "scored": 44,
+   "not_applicable": 0,
+   "rate": 0.705,
+   "failed_ids": [
+    "mh-worth-hi",
+    "mh-whatif-4kw-en",
+    "mh-savings-hi",
+    "mh-surplus-en",
+    "mh-apply-en",
+    "dl-worth-hinglish",
+    "dl-whatif-3kw-en",
+    "dl-surplus-en",
+    "dl-detail-en",
+    "ka-whatif-3kw-hinglish",
+    "un-payback-hi",
+    "rl-worth-hinglish",
+    "qh-vendor-en"
+   ]
+  },
+  "careful_handling": {
+   "passed": 13,
+   "scored": 14,
+   "not_applicable": 0,
+   "rate": 0.929,
+   "failed_ids": [
+    "ka-loan-en"
+   ]
+  },
+  "flags_unverified": {
+   "passed": 0,
+   "scored": 0,
+   "not_applicable": 0,
+   "rate": null,
+   "failed_ids": []
+  }
+ },
+ "deterministic_by_language": {
+  "en": {
+   "language_match": 1.0,
+   "rupee_figures_traceable": 0.941,
+   "year_figures_traceable": 0.923,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": 0.667,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 1.0,
+   "under_150_words": 0.958,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 1.0,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": 1.0,
+   "tool_arguments_justified": 0.875
+  },
+  "hi": {
+   "language_match": 1.0,
+   "rupee_figures_traceable": 1.0,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 0.833,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "links_from_policy_data": null,
+   "required_facts_present": 1.0,
+   "under_150_words": 1.0,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 0.889,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": null,
+   "tool_arguments_justified": 1.0
+  },
+  "hinglish": {
+   "language_match": 0.9,
+   "rupee_figures_traceable": 1.0,
+   "year_figures_traceable": 1.0,
+   "other_figures_traceable": 1.0,
+   "figures_match_their_label": 1.0,
+   "monthly_yearly_not_confused": 1.0,
+   "no_figures_for_unknowns": null,
+   "links_from_policy_data": 1.0,
+   "required_facts_present": 1.0,
+   "under_150_words": 0.9,
+   "no_markdown": 1.0,
+   "no_leaked_reasoning": 1.0,
+   "no_internal_names": 0.9,
+   "unverified_data_flagged": null,
+   "what_if_recalculated": 1.0,
+   "tool_arguments_justified": 1.0
+  }
+ },
+ "graded_by_language": {
+  "en": {
+   "first_sentence_answers": 0.72,
+   "layperson_clear": 0.72,
+   "careful_handling": 0.9,
+   "flags_unverified": null
+  },
+  "hi": {
+   "first_sentence_answers": 0.889,
+   "layperson_clear": 0.667,
+   "careful_handling": 1.0,
+   "flags_unverified": null
+  },
+  "hinglish": {
+   "first_sentence_answers": 0.8,
+   "layperson_clear": 0.7,
+   "careful_handling": 1.0,
+   "flags_unverified": null
+  }
+ },
+ "all_deterministic_checks_passed": 38
+}

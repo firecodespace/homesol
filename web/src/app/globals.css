@@ -1,13 +1,126 @@
 @import "tailwindcss";
 
+/*
+ * Material Design 3 colour roles, light scheme, generated from a solar-amber seed.
+ * Components use the roles (bg-primary, text-on-surface-variant, ...) and never raw colours,
+ * so the whole theme can be changed here.
+ */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-roboto), var(--font-devanagari), Roboto, system-ui, sans-serif;
+
+  --color-primary: #855300;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ffddb3;
+  --color-on-primary-container: #2a1700;
+  --color-secondary: #6f5b40;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fbdebc;
+  --color-on-secondary-container: #271904;
+  --color-tertiary: #51643f;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #d4eabb;
+  --color-on-tertiary-container: #102004;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #410002;
+  --color-surface: #fff8f4;
+  --color-surface-dim: #e6d8ca;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fff1e5;
+  --color-surface-container: #fcebdc;
+  --color-surface-container-high: #f6e5d6;
+  --color-surface-container-highest: #f0e0d0;
+  --color-on-surface: #211a13;
+  --color-on-surface-variant: #50453a;
+  --color-outline: #827568;
+  --color-outline-variant: #d4c4b5;
+  --color-inverse-surface: #372f27;
+  --color-inverse-on-surface: #fdeee0;
+
+  /* Shape scale */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+
+  /* Elevation */
+  --shadow-level1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --shadow-level2: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
 }
 
 body {
-  background: #020617;
-  color: #e2e8f0;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+/* Type scale */
+@utility md-headline {
+  @apply text-2xl leading-8 font-normal text-on-surface;
+}
+@utility md-title-large {
+  @apply text-[22px] leading-7 font-normal text-on-surface;
+}
+@utility md-title {
+  @apply text-base leading-6 font-medium tracking-[0.15px] text-on-surface;
+}
+@utility md-label {
+  @apply text-xs leading-4 font-medium tracking-[0.5px] text-on-surface-variant;
+}
+@utility md-body {
+  @apply text-sm leading-5 tracking-[0.25px] text-on-surface-variant;
+}
+@utility md-supporting {
+  @apply text-xs leading-4 tracking-[0.4px] text-on-surface-variant;
+}
+
+/* Buttons: 40px tall, fully rounded, label-large text */
+@utility md-button {
+  @apply inline-flex h-10 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium tracking-[0.1px] transition
+    disabled:cursor-not-allowed disabled:opacity-40;
+}
+@utility md-filled {
+  @apply md-button bg-primary text-on-primary hover:shadow-level1 hover:brightness-110;
+}
+@utility md-tonal {
+  @apply md-button bg-secondary-container text-on-secondary-container hover:shadow-level1 hover:brightness-95;
+}
+@utility md-outlined {
+  @apply md-button border border-outline text-primary hover:bg-primary/8;
+}
+@utility md-text {
+  @apply md-button px-3 text-primary hover:bg-primary/8;
+}
+
+/* Outlined text field */
+@utility md-field {
+  @apply h-12 rounded-xs border border-outline bg-transparent px-4 text-base text-on-surface
+    placeholder:text-on-surface-variant/70 hover:border-on-surface
+    focus:border-2 focus:border-primary focus:outline-none;
+}
+@utility md-field-dense {
+  @apply md-field h-10 px-3 text-sm;
+}
+
+/* Cards */
+@utility md-card {
+  @apply rounded-md bg-surface-container-low p-4;
+}
+@utility md-card-outlined {
+  @apply rounded-md border border-outline-variant bg-surface p-4;
+}
+@utility md-card-elevated {
+  @apply rounded-md bg-surface-container-lowest p-4 shadow-level1;
+}
+
+@utility md-chip {
+  @apply inline-flex h-8 items-center rounded-sm border border-outline px-3 text-sm font-medium text-on-surface-variant
+    hover:bg-on-surface/8;
+}
+
+@utility md-divider {
+  @apply border-t border-outline-variant;
 }
 
 .obstruction-badge {
@@ -16,8 +129,8 @@ body {
   width: 22px;
   height: 22px;
   border-radius: 9999px;
-  background: #f43f5e;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-on-error);
   font-size: 12px;
   font-weight: 600;
   border: 2px solid #fff;

@@ -88,6 +88,56 @@ export const requestDetection = (payload: {
   shadow_bearing: number | null;
 }) => post<unknown>("/detect", payload);
 
+/** Google's photo of the area with the map position of its corners (TL, TR, BR, BL). */
+export interface Picture {
+  image: string;
+  corners: [LngLat, LngLat, LngLat, LngLat];
+}
+
+export type MeasuredSun =
+  | { available: false; reason: string }
+  | {
+      available: true;
+      cells: { polygon: LngLat[]; access: number }[];
+      cell_size_m: number;
+      /** Area of the surface panels would sit on, leaving out structures above it and ground below. */
+      surface_area_m2: number;
+      /** What the outlined area is, from its height above nearby ground. */
+      surface: "roof" | "ground" | null;
+      structures_m2: number;
+      roof_height_m: number | null;
+      floors?: number;
+      imagery_date: string | null;
+      imagery_quality: string | null;
+      picture: Picture | null;
+    };
+
+/** Google's measured sun map for a roof, where Google has surveyed it. */
+export const fetchMeasuredSun = (roof: LngLat[], signal?: AbortSignal) =>
+  post<MeasuredSun>("/measured-sun", { roof }, signal);
+
+export type RoofAt =
+  | { available: false; reason: string }
+  | { available: true; found: false; kind: "ground" | "not_building" | "too_small"; height_m: number }
+  | {
+      available: true;
+      found: true;
+      roof: LngLat[];
+      area_m2: number;
+      height_m: number;
+      floors: number;
+      cut_off: boolean;
+    };
+
+/** Google's photo of the neighbourhood around a point, or null where Google has none. */
+export const fetchAreaPicture = async ([lng, lat]: LngLat, signal?: AbortSignal): Promise<Picture | null> => {
+  const res = await post<{ available: boolean; picture?: Picture }>("/picture", { lng, lat }, signal);
+  return res.available && res.picture ? res.picture : null;
+};
+
+/** The roof under a tapped point, outlined from Google's height data. */
+export const findRoofAt = ([lng, lat]: LngLat) => post<RoofAt>("/roof-at", { lng, lat });
+
 export const sendVerdict = (verdict: {
   detection_id: string;
   verdict: "confirmed" | "rejected" | "missed";

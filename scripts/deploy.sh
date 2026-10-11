@@ -15,7 +15,7 @@ rm -rf "${BUILD}/pkg" "${BUILD}/api.zip"
 mkdir -p "${BUILD}/pkg"
 "${ROOT}/api/.venv/bin/pip" install -q --target "${BUILD}/pkg" \
   --platform manylinux2014_aarch64 --python-version 3.13 --implementation cp --only-binary=:all: \
-  strands-agents fastapi python-dotenv mangum amazon-transcribe
+  strands-agents fastapi python-dotenv mangum amazon-transcribe httpx numpy tifffile
 cp -r "${ROOT}/api/homesol" "${ROOT}/api/data" "${ROOT}/api/lambda_handler.py" "${BUILD}/pkg/"
 find "${BUILD}/pkg" -name "__pycache__" -type d -prune -exec rm -rf {} +
 (cd "${BUILD}/pkg" && zip -qr ../api.zip .)
@@ -29,6 +29,18 @@ aws s3 cp --only-show-errors "${BUILD}/api.zip" "s3://${BUCKET}/api.zip"
 aws lambda update-function-code --region "${REGION}" --function-name "${FUNCTION}" \
   --s3-bucket "${BUCKET}" --s3-key api.zip --query 'LastUpdateStatus' --output text
 aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
+
+# Pass the Google Maps key from api/.env to the function, keeping its other settings.
+GOOGLE_KEY="$(grep -E '^GOOGLE_MAPS_API_KEY=.+' "${ROOT}/api/.env" 2>/dev/null | cut -d= -f2- || true)"
+if [[ -n "${GOOGLE_KEY}" ]]; then
+  echo "== Setting the Google Maps key on the function"
+  ENVIRONMENT="$(aws lambda get-function-configuration --region "${REGION}" --function-name "${FUNCTION}" --query 'Environment.Variables' --output json \
+    | GOOGLE_KEY="${GOOGLE_KEY}" python3 -c 'import json, os, sys; v = json.load(sys.stdin); v["GOOGLE_MAPS_API_KEY"] = os.environ["GOOGLE_KEY"]; print(json.dumps({"Variables": v}))')"
+  aws lambda update-function-configuration --region "${REGION}" --function-name "${FUNCTION}" \
+    --environment "${ENVIRONMENT}" --query 'LastUpdateStatus' --output text
+  aws lambda wait function-updated-v2 --region "${REGION}" --function-name "${FUNCTION}"
+fi
+
 API_URL="$(aws lambda get-function-url-config --region "${REGION}" --function-name "${FUNCTION}" --query 'FunctionUrl' --output text)"
 API_URL="${API_URL%/}"
 

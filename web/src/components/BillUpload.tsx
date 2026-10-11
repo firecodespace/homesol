@@ -45,7 +45,7 @@ export default function BillUpload() {
 
   const read = typeof state === "object" && "read" in state ? state.read : null;
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+    <div className="md-card-outlined">
       <input
         ref={input}
         type="file"
@@ -57,12 +57,12 @@ export default function BillUpload() {
       <button className={secondary} disabled={state === "reading"} onClick={() => input.current?.click()}>
         {state === "reading" ? "Reading your bill…" : "Fill this in from a photo of my bill"}
       </button>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-on-surface-variant">
         The photo is read once and not stored. Your name, address and consumer number are not kept.
       </p>
-      {typeof state === "object" && "error" in state && <p className="mt-2 text-xs text-rose-300">{state.error}</p>}
+      {typeof state === "object" && "error" in state && <p className="mt-2 text-xs text-error">{state.error}</p>}
       {read && (
-        <p className="mt-2 text-xs text-slate-300">
+        <p className="mt-2 text-xs text-on-surface">
           Read from the bill:{" "}
           {[
             read.units_per_month && `${fmt(read.units_per_month)} units a month`,

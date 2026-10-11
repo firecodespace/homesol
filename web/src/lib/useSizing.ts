@@ -21,7 +21,7 @@ function irradianceFor(at: LngLat): Promise<number[]> {
 }
 
 /** The recommended system for the surveyed roof and the household's usage. */
-export function useSizing(analysis: ShadingResult): { sizing: Sizing | null; sunlight: Sunlight | null } {
+export function useSizing(analysis: ShadingResult | null): { sizing: Sizing | null; sunlight: Sunlight | null } {
   const roof = useStore((s) => s.roof);
   const monthlyUnits = useStore((s) => s.monthlyUnits);
   const [sunlight, setSunlight] = useState<Sunlight | null>(null);
@@ -38,7 +38,7 @@ export function useSizing(analysis: ShadingResult): { sizing: Sizing | null; sun
   }, [roof]);
 
   const sizing =
-    monthlyUnits && sunlight && "values" in sunlight
+    analysis && monthlyUnits && sunlight && "values" in sunlight
       ? sizeSystem({
           monthlyIrradiance: sunlight.values,
           monthlyUsageKwh: monthlyUnits,
