@@ -44,7 +44,17 @@ def clip_filter(i: int, clip: dict, fps: int) -> str:
             f"crop=w='2*({w0}+({w1}-{w0})*{k})':h='2*({h0}+({h1}-{h0})*{k})':x='2*({x0}+({x1}-{x0})*{k})':y='2*({y0}+({y1}-{y0})*{k})'",
         ]
     f += [f"scale={W}:{H}:flags=lanczos", "setsar=1", "format=yuv444p"]
-    return ",".join(f) + f"[c{i}]"
+    if not clip.get("blur"):
+        return ",".join(f) + f"[c{i}]"
+    # Privacy: blur each given rectangle (in output pixels), e.g. a private home's coordinates.
+    chain = ",".join(f) + f",split={len(clip['blur']) + 1}" + "".join(f"[b{i}_{k}]" for k in range(len(clip["blur"]) + 1))
+    parts, base = [chain], f"b{i}_0"
+    for k, (x, y, w, h) in enumerate(clip["blur"], start=1):
+        parts.append(f"[b{i}_{k}]crop={w}:{h}:{x}:{y},boxblur=12:3[bb{i}_{k}]")
+        parts.append(f"[{base}][bb{i}_{k}]overlay={x}:{y}[bo{i}_{k}]")
+        base = f"bo{i}_{k}"
+    parts[-1] = parts[-1].rsplit("[", 1)[0] + f"[c{i}]"
+    return ";".join(parts)
 
 
 def build(timeline_path: str, out: str, preview: bool) -> list[str]:
@@ -60,8 +70,10 @@ def build(timeline_path: str, out: str, preview: bool) -> list[str]:
 
     # A clip asking for more than its source holds would silently break the dissolves.
     for c in video:
-        have = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path(c["src"])],
-                                    capture_output=True, text=True, check=True).stdout)
+        probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=start_time,duration", "-of", "csv=p=0", path(c["src"])],
+                               capture_output=True, text=True, check=True).stdout.strip().split(",")
+        # Wall-clock captures start far from zero; what matters is how long they run.
+        have = float(probe[1]) - float(probe[0])
         if c.get("in", 0) + c["dur"] > have + 1e-3:
             raise SystemExit(f"{c['src']}: wants {c.get('in', 0)} + {c['dur']} s but holds {have:.3f} s")
 
@@ -91,6 +103,12 @@ def build(timeline_path: str, out: str, preview: bool) -> list[str]:
         current = f"ov{j}"
     graph.append(f"[{current}]format=yuv420p,trim=duration={duration},setpts=PTS-STARTPTS[vout]")
 
+    if tl.get("mix"):
+        # A finished mix from mix.py: used as it is.
+        inputs += ["-i", path(tl["mix"])]
+        graph.append(f"[{n + len(overlays)}:a]atrim=duration={duration},asetpts=PTS-STARTPTS,aresample=48000[aout]")
+        return command(inputs, graph, duration, fps, out, preview)
+
     # Audio: narration lines placed in time, music ducked under them.
     a0 = n + len(overlays)
     for k, v in enumerate(voice):
@@ -116,6 +134,10 @@ def build(timeline_path: str, out: str, preview: bool) -> list[str]:
         audio = "amixed"
     graph.append(f"[{audio}]atrim=duration={duration},asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[aout]")
 
+    return command(inputs, graph, duration, fps, out, preview)
+
+
+def command(inputs: list[str], graph: list[str], duration: float, fps: int, out: str, preview: bool) -> list[str]:
     frames = int(round(duration * fps))
     encode = (
         ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23"]

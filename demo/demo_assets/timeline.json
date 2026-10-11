@@ -1,0 +1,311 @@
+{
+ "duration": 180.0,
+ "fps": 30,
+ "video": [
+  {
+   "src": "raw/hook/hook_3.mkv",
+   "in": 1.15,
+   "dur": 15.6,
+   "xfade": 0.6,
+   "push": [
+    [
+     0,
+     0,
+     1920,
+     1080
+    ],
+    [
+     72,
+     40,
+     1776,
+     999
+    ]
+   ]
+  },
+  {
+   "src": "graphics/problem.mkv",
+   "in": 0,
+   "dur": 25.6,
+   "xfade": 0.6
+  },
+  {
+   "src": "graphics/reveal.mkv",
+   "in": 0,
+   "dur": 6.6,
+   "xfade": 0.6
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 0.6,
+   "dur": 33.3,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 34.8,
+   "dur": 13.6,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 48.6,
+   "dur": 12.0,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 62.9,
+   "dur": 7.6,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 71.8,
+   "dur": 15.8,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 90.2,
+   "dur": 12.6,
+   "xfade": 0.4,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 104.9,
+   "dur": 8.6,
+   "xfade": 0.6,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "raw/workflow/workflow_2.mkv",
+   "in": 122.2,
+   "dur": 9.6,
+   "xfade": 0.5,
+   "blur": [
+    [
+     1122,
+     140,
+     296,
+     58
+    ]
+   ]
+  },
+  {
+   "src": "graphics/evidence.mkv",
+   "in": 0,
+   "dur": 11.2,
+   "xfade": 0.4
+  },
+  {
+   "src": "raw/close/close_1.mkv",
+   "in": 0.5,
+   "dur": 7.0,
+   "xfade": 0.6,
+   "push": [
+    [
+     0,
+     0,
+     1920,
+     1080
+    ],
+    [
+     96,
+     54,
+     1728,
+     972
+    ]
+   ]
+  },
+  {
+   "src": "graphics/close.mkv",
+   "in": 0,
+   "dur": 7.2
+  }
+ ],
+ "overlays": [
+  {
+   "src": "graphics/hook_overlay.mov",
+   "at": 0.0
+  },
+  {
+   "src": "graphics/lt_measured.mov",
+   "at": 59.6
+  },
+  {
+   "src": "graphics/lt_claude.mov",
+   "at": 67.6
+  },
+  {
+   "src": "graphics/co_causes.mov",
+   "at": 95.6
+  },
+  {
+   "src": "graphics/co_plan.mov",
+   "at": 119.3
+  },
+  {
+   "src": "graphics/co_sources.mov",
+   "at": 135.7
+  },
+  {
+   "src": "graphics/lt_agent.mov",
+   "at": 140.4
+  }
+ ],
+ "voice": [
+  {
+   "src": "audio/vo/v01.wav",
+   "at": 0.9
+  },
+  {
+   "src": "audio/vo/v02.wav",
+   "at": 3.5
+  },
+  {
+   "src": "audio/vo/v03.wav",
+   "at": 7.6
+  },
+  {
+   "src": "audio/vo/v04.wav",
+   "at": 15.8
+  },
+  {
+   "src": "audio/vo/v05.wav",
+   "at": 19.2
+  },
+  {
+   "src": "audio/vo/v06.wav",
+   "at": 21.6
+  },
+  {
+   "src": "audio/vo/v07.wav",
+   "at": 23.6
+  },
+  {
+   "src": "audio/vo/v08.wav",
+   "at": 25.5
+  },
+  {
+   "src": "audio/vo/v09.wav",
+   "at": 29.4
+  },
+  {
+   "src": "audio/vo/v10.wav",
+   "at": 40.7
+  },
+  {
+   "src": "audio/vo/v11.wav",
+   "at": 46.3
+  },
+  {
+   "src": "audio/vo/v12.wav",
+   "at": 53.8
+  },
+  {
+   "src": "audio/vo/v13.wav",
+   "at": 67.3
+  },
+  {
+   "src": "audio/vo/v14.wav",
+   "at": 79.7
+  },
+  {
+   "src": "audio/vo/v15.wav",
+   "at": 95.2
+  },
+  {
+   "src": "audio/vo/v16.wav",
+   "at": 104.2
+  },
+  {
+   "src": "audio/vo/v17.wav",
+   "at": 111.4
+  },
+  {
+   "src": "audio/vo/v18.wav",
+   "at": 118.9
+  },
+  {
+   "src": "audio/vo/v19.wav",
+   "at": 133.0
+  },
+  {
+   "src": "audio/vo/v20.wav",
+   "at": 139.6
+  },
+  {
+   "src": "audio/vo/v21.wav",
+   "at": 148.6
+  },
+  {
+   "src": "audio/vo/v22.wav",
+   "at": 156.0
+  },
+  {
+   "src": "audio/vo/v23.wav",
+   "at": 166.8
+  },
+  {
+   "src": "audio/vo/v24.wav",
+   "at": 174.6
+  }
+ ],
+ "music": "audio/music.wav",
+ "mix": "audio/mix.wav"
+}

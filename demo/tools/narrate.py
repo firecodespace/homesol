@@ -7,8 +7,9 @@ lines.json is a list of {"id": "vo_01", "say": "text to speak"}. `say` is writte
 Writes out_dir/<id>.wav (24 kHz mono) and out_dir/durations.json, which the edit uses to place
 each line.
 
-The model and voice download once from Hugging Face (onnx-community/Kokoro-82M-v1.0-ONNX) into
-demo/.models/; huggingface.co must be reachable for that first run.
+Uses kokoro-v1.0.onnx and voices-v1.0.bin in demo/.models/ when present (kokoro-onnx's GitHub
+release files); otherwise downloads the model and voice from Hugging Face
+(onnx-community/Kokoro-82M-v1.0-ONNX).
 """
 
 import json
@@ -21,9 +22,18 @@ import soundfile
 MODELS = os.path.join(os.path.dirname(__file__), "..", ".models")
 REPO = "onnx-community/Kokoro-82M-v1.0-ONNX"
 
+# Phoneme corrections for Indian words English rules misread (respelling cannot reach these).
+FIXES = {
+    "sˈɜːɹɪə": "sˈuːɹjə",  # Surya: "SOOR-yuh", not "SUR-ee-uh"
+}
+
 
 def fetch(voice: str) -> tuple[str, str]:
     """The ONNX model and a voices file holding `voice`, downloaded on first use."""
+    # kokoro-onnx's own release files, if already fetched (github.com/thewh1teagle/kokoro-onnx).
+    model, voices = os.path.join(MODELS, "kokoro-v1.0.onnx"), os.path.join(MODELS, "voices-v1.0.bin")
+    if os.path.exists(model) and os.path.exists(voices):
+        return model, voices
     from huggingface_hub import hf_hub_download
 
     os.makedirs(MODELS, exist_ok=True)
@@ -50,7 +60,11 @@ def main() -> None:
     tts = Kokoro(model, voices)
     durations = {}
     for line in lines:
-        audio, sr = tts.create(line["say"], voice=voice, speed=line.get("speed", speed), lang="en-us")
+        # Speak from phonemes, so words the English rules get wrong can be corrected (see FIXES).
+        phonemes = tts.tokenizer.phonemize(line["say"], "en-us")
+        for wrong, right in FIXES.items():
+            phonemes = phonemes.replace(wrong, right)
+        audio, sr = tts.create(phonemes, voice=voice, speed=line.get("speed", speed), lang="en-us", is_phonemes=True)
         # Trim the model's leading and trailing near-silence, keeping a short natural edge.
         loud = np.flatnonzero(np.abs(audio) > 0.01)
         if len(loud):

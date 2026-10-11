@@ -61,6 +61,31 @@ const CURSOR_SCRIPT = `
 `;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The recording environment cannot reach power.larc.nasa.gov. NASA publishes the same
+ * climatology on AWS Open Data (bucket nasa-power), which it can reach: tools/nasa_power.py
+ * extracts those 1-degree cells, and the app's request is answered with that cell's values in
+ * the API's own JSON shape. Same dataset, different door.
+ */
+async function routeNasa(context, file) {
+  const { cells, source } = JSON.parse(fs.readFileSync(file, "utf8"));
+  await context.route("https://power.larc.nasa.gov/api/temporal/climatology/point**", (route) => {
+    const q = new URL(route.request().url()).searchParams;
+    const lat = Math.floor(Number(q.get("latitude"))) + 0.5;
+    const lon = Math.floor(Number(q.get("longitude"))) + 0.5;
+    const cell = cells[`${lat.toFixed(1)},${lon.toFixed(1)}`];
+    if (!cell) return route.abort();
+    route.fulfill({
+      json: {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lon, lat] },
+        properties: { parameter: { ALLSKY_SFC_SW_DWN: cell } },
+        header: { title: "NASA/POWER climatology (CERES SYN1deg), served from " + source },
+      },
+    });
+  });
+}
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function startDisplay() {
@@ -84,7 +109,7 @@ class Recorder {
     this.t0 = null;
   }
 
-  async open(url, { storage } = {}) {
+  async open(url, { storage, nasa = path.join(__dirname, "..", "demo_assets", "nasa_power_india.json") } = {}) {
     this.xvfb = startDisplay();
     if (this.xvfb) process.once("exit", () => process.kill(-this.xvfb.pid));
     // A persistent context opens Chromium's own first window, which honours kiosk mode: no tabs,
@@ -123,6 +148,7 @@ class Recorder {
         }
       }, storage);
     }
+    if (nasa && fs.existsSync(nasa)) await routeNasa(this.context, nasa);
     this.page = this.context.pages()[0] ?? (await this.context.newPage());
     this.page.on("pageerror", (e) => this.log("PAGE ERROR " + e.message));
     this.page.on("console", (m) => m.type() === "error" && this.log("console.error " + m.text().slice(0, 160)));
@@ -145,6 +171,8 @@ class Recorder {
       [
         "-y", "-loglevel", "error", "-thread_queue_size", "1024",
         "-f", "x11grab", "-draw_mouse", "0", "-framerate", "30", "-video_size", `${W}x${H}`, "-i", `${DISPLAY}.0`,
+        // Keep the grab's wall-clock timestamps in the file, so the first frame's time is known.
+        "-copyts",
         "-c:v", "libx264rgb", "-preset", "ultrafast", "-crf", "0", "-g", "30",
         this.file,
       ],
@@ -175,6 +203,7 @@ class Recorder {
     try {
       const first = Number(execSync(`ffprobe -v error -show_entries format=start_time -of csv=p=0 "${this.file}"`).toString());
       offset = Number((this.t0 / 1000 - first).toFixed(3));
+      if (Math.abs(offset) > 10) offset = 0; // timestamps were not wall-clock after all
     } catch {}
     const marks = this.marks.map((m) => ({ ...m, t: Number((m.t + offset).toFixed(3)) }));
     fs.writeFileSync(path.join(this.outDir, `${this.name}.marks.json`), JSON.stringify({ offset, marks }, null, 2));
@@ -256,4 +285,4 @@ class Recorder {
   }
 }
 
-module.exports = { Recorder, sleep, W, H, VW, VH };
+module.exports = { Recorder, sleep, W, H, VW, VH, CURSOR_SCRIPT };

@@ -12,3 +12,7 @@
 *.mkv
 *.mov
 *.mp4
+/demo_assets/audio/vo/*.wav
+/demo_assets/qa/
+/demo_assets/rehearsal/
+/demo_assets/property.json

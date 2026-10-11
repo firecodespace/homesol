@@ -23,9 +23,14 @@
   const label = document.querySelector(".label");
   if (params.label) {
     label.textContent = params.label;
-    // Label above the ring unless that would leave the frame.
-    const above = y - pad - 64 > 20;
-    Object.assign(label.style, { left: x - pad + "px", top: (above ? y - pad - 62 : y + h + pad + 14) + "px" });
+    if (params.side === "left") {
+      // Beside the ring, on its left, centred on it.
+      Object.assign(label.style, { right: 1920 - (x - pad - 16) + "px", top: (params.labelTop ?? y + h / 2 - 26) + "px" });
+    } else {
+      // Label above the ring unless that would leave the frame.
+      const above = y - pad - 64 > 20;
+      Object.assign(label.style, { left: x - pad + "px", top: (above ? y - pad - 62 : y + h + pad + 14) + "px" });
+    }
   } else label.remove();
   const dim = params.dim ?? 0.38;
   anim(ring, [[0.0, { o: 0, s: 1.06, "--dim": 0 }], [0.55, { o: 1, s: 1, "--dim": dim }], [D - 0.45, { o: 1, "--dim": dim }], [D, { o: 0, "--dim": 0 }]]);

@@ -2,6 +2,26 @@
 
 Written 11 October 2026 for the session that finishes the 3-minute product demo. Read this, then `demo_script.md` and `demo_shot_list.md`. The product itself is described in `../docs/handoff.md` and `../docs/how-it-works.md`.
 
+## Status: produced
+
+`project_demo_final.mp4` was made on 11 October 2026 (180.000 s, 1920×1080, 30 fps, H.264 High + AAC-LC, −16 LUFS) and handed to the owner directly; media is not in git. It was made in the original session after all, without the new environment: the owner supplied the keys, NASA's sunlight data came from NASA's AWS mirror, and the Kokoro model from kokoro-onnx's GitHub release. `demo_shot_list.md` lists every workaround.
+
+To remake it from scratch:
+
+```bash
+# app on :3000 (production build) and API on :8000 with keys, as below
+demo/.venv/bin/python demo/tools/nasa_power.py demo/demo_assets/nasa_power_india.json   # once
+# demo/demo_assets/property.json (git-ignored): {"lng", "lat", "units", "bill", "question"}
+NODE_PATH=$(npm root -g) node demo/tools/take-demo.cjs workflow _2    # also: hook _3, close _1
+demo/.venv/bin/python demo/tools/music.py demo/demo_assets/audio/music.wav
+demo/.venv/bin/python demo/tools/narrate.py demo/demo_assets/audio/lines.json demo/demo_assets/audio/vo
+demo/.venv/bin/python demo/tools/build_timeline.py --render
+demo/.venv/bin/python demo/tools/mix.py demo/demo_assets/timeline.json
+demo/.venv/bin/python demo/tools/assemble.py demo/demo_assets/timeline.json demo/project_demo_final.mp4
+```
+
+Retaking footage changes the marks: update the segment in-points and narration times in `tools/build_timeline.py` from the new `*.marks.json`, and the hover positions in `take-demo.cjs` from `tools/scan-tips.cjs`. The sections below are the original plan, kept for reference.
+
 ## The brief, in short
 
 The owner asked for a finished, exactly 180-second product demo of homesol, made by operating the real application in a browser here, not a storyboard. Deliverables, all inside `demo/`:

@@ -1,0 +1,143 @@
+1
+00:00:00,900 --> 00:00:02,861
+Every roof loses sun to something.
+
+2
+00:00:03,500 --> 00:00:04,321
+A stair room.
+
+3
+00:00:04,321 --> 00:00:05,143
+A water tank.
+
+4
+00:00:05,143 --> 00:00:06,407
+The floor next door.
+
+5
+00:00:06,407 --> 00:00:06,849
+A tree.
+
+6
+00:00:07,600 --> 00:00:10,621
+And how much it loses decides whether solar is worth it.
+
+7
+00:00:15,800 --> 00:00:18,722
+Before going solar, a household needs four answers.
+
+8
+00:00:19,200 --> 00:00:20,925
+Where can panels actually fit?
+
+9
+00:00:21,600 --> 00:00:22,936
+What shades them, and when?
+
+10
+00:00:23,600 --> 00:00:24,865
+How much will they make?
+
+11
+00:00:25,500 --> 00:00:27,911
+And what will it really cost, after the subsidy?
+
+12
+00:00:29,400 --> 00:00:35,459
+Today, those answers come from a site visit and a round of quotes, and the household can't check any of them.
+
+13
+00:00:40,700 --> 00:00:43,711
+homesol answers all four, from one tap on a map.
+
+14
+00:00:46,300 --> 00:00:50,424
+Here's a home in Chandigarh, in Google's own photo of the street.
+
+15
+00:00:50,424 --> 00:00:51,756
+One tap, on its roof.
+
+16
+00:00:53,800 --> 00:01:04,562
+It measures the roof from Google's 3D survey: flat, two hundred and twenty-five square metres, about two floors up, and it finds everything around that could cast a shadow.
+
+17
+00:01:04,562 --> 00:01:06,502
+That's geometry, not guesswork.
+
+18
+00:01:07,300 --> 00:01:14,439
+Then Claude, on Amazon Bedrock, names what was measured: a large cluster of trees to the south-west, a stair room.
+
+19
+00:01:14,439 --> 00:01:15,629
+It can name things.
+
+20
+00:01:15,629 --> 00:01:17,508
+It can't change a measurement.
+
+21
+00:01:19,700 --> 00:01:28,223
+Next, it runs the sun across the year, every half hour, over those heights, and charges each hour of lost sunlight to whatever blocked it.
+
+22
+00:01:35,200 --> 00:01:37,311
+The trees take fifty-six percent.
+
+23
+00:01:37,311 --> 00:01:42,941
+On the shortest day, the panel spots are clear of shadow only from about ten until noon.
+
+24
+00:01:44,200 --> 00:01:46,199
+Panels go only where the sun is good.
+
+25
+00:01:46,199 --> 00:01:50,899
+There's room for twenty-eight, in rows spaced so they don't shade each other in winter.
+
+26
+00:01:51,400 --> 00:01:56,859
+Say this household uses three hundred and fifty units a month, about nineteen hundred rupees.
+
+27
+00:01:58,900 --> 00:02:03,558
+The plan: six panels, three point three kilowatts, covering all of it.
+
+28
+00:02:03,558 --> 00:02:12,275
+After the seventy-eight thousand rupee PM Surya Ghar subsidy, it costs one lakh twenty thousand, and pays back in about five years.
+
+29
+00:02:13,000 --> 00:02:19,015
+And every figure says where it came from: the survey's date, the subsidy rules, the household's own rate.
+
+30
+00:02:19,600 --> 00:02:22,222
+Now, a what-if: what about five kilowatts?
+
+31
+00:02:22,222 --> 00:02:28,154
+A Strands agent on Claude answers from this plan, using the same finance code as the dashboard.
+
+32
+00:02:28,600 --> 00:02:34,826
+The bigger system would take about nine years to pay back, not five, because the extra units would earn nothing.
+
+33
+00:02:36,000 --> 00:02:46,432
+Across eighty-one test questions, seven hundred and eighty-nine of seven hundred and ninety automatic checks passed, and every money figure traced back to the plan's own numbers.
+
+34
+00:02:46,800 --> 00:02:47,287
+One tap.
+
+35
+00:02:47,287 --> 00:02:53,259
+A measured roof, a year of shadows, a panel plan and an honest price, before the first site visit.
+
+36
+00:02:54,600 --> 00:02:55,631
+That's homesol.

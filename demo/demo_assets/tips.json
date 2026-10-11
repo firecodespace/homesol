@@ -1,0 +1,111 @@
+{
+ "before": {
+  "Trees to the north-west": {
+   "at": [
+    437,
+    265
+   ],
+   "hits": 114
+  },
+  "Room for another panel": {
+   "at": [
+    767,
+    463
+   ],
+   "hits": 35
+  },
+  "Large tree cluster to south-west": {
+   "at": [
+    503,
+    727
+   ],
+   "hits": 178
+  },
+  "Water tank": {
+   "at": [
+    635,
+    573
+   ],
+   "hits": 6
+  },
+  "Small water tank": {
+   "at": [
+    811,
+    573
+   ],
+   "hits": 3
+  },
+  "Stair room": {
+   "at": [
+    701,
+    617
+   ],
+   "hits": 23
+  },
+  "Rooftop equipment or tank": {
+   "at": [
+    833,
+    595
+   ],
+   "hits": 3
+  },
+  "Rooftop parapet or fixture": {
+   "at": [
+    767,
+    639
+   ],
+   "hits": 4
+  }
+ },
+ "after": {
+  "Panel in your plan": {
+   "at": [
+    820,
+    420
+   ],
+   "hits": 45
+  },
+  "Room for another panel": {
+   "at": [
+    748,
+    501
+   ],
+   "hits": 155
+  },
+  "Water tank": {
+   "at": [
+    649,
+    564
+   ],
+   "hits": 36
+  },
+  "Small water tank": {
+   "at": [
+    820,
+    564
+   ],
+   "hits": 15
+  },
+  "Stair room": {
+   "at": [
+    703,
+    618
+   ],
+   "hits": 135
+  },
+  "Rooftop equipment or tank": {
+   "at": [
+    829,
+    609
+   ],
+   "hits": 23
+  },
+  "Rooftop parapet or fixture": {
+   "at": [
+    766,
+    654
+   ],
+   "hits": 16
+  }
+ }
+}

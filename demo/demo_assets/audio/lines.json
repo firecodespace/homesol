@@ -1,0 +1,98 @@
+[
+ {
+  "id": "v01",
+  "say": "Every roof loses sun to something."
+ },
+ {
+  "id": "v02",
+  "say": "A stair room. A water tank. The floor next door. A tree."
+ },
+ {
+  "id": "v03",
+  "say": "And how much it loses decides whether solar is worth it."
+ },
+ {
+  "id": "v04",
+  "say": "Before going solar, a household needs four answers."
+ },
+ {
+  "id": "v05",
+  "say": "Where can panels actually fit?"
+ },
+ {
+  "id": "v06",
+  "say": "What shades them, and when?"
+ },
+ {
+  "id": "v07",
+  "say": "How much will they make?"
+ },
+ {
+  "id": "v08",
+  "say": "And what will it really cost, after the subsidy?"
+ },
+ {
+  "id": "v09",
+  "say": "Today, those answers come from a site visit and a round of quotes, and the household can't check any of them."
+ },
+ {
+  "id": "v10",
+  "say": "home sol answers all four, from one tap on a map."
+ },
+ {
+  "id": "v11",
+  "say": "Here's a home in Chundeegarh, in Google's own photo of the street. One tap, on its roof."
+ },
+ {
+  "id": "v12",
+  "say": "It measures the roof from Google's 3D survey: flat, two hundred and twenty-five square metres, about two floors up, and it finds everything around that could cast a shadow. That's geometry, not guesswork."
+ },
+ {
+  "id": "v13",
+  "say": "Then Claude, on Amazon Bedrock, names what was measured: a large cluster of trees to the south-west, a stair room. It can name things. It can't change a measurement."
+ },
+ {
+  "id": "v14",
+  "say": "Next, it runs the sun across the year, every half hour, over those heights, and charges each hour of lost sunlight to whatever blocked it."
+ },
+ {
+  "id": "v15",
+  "say": "The trees take fifty-six percent. On the shortest day, the panel spots are clear of shadow only from about ten until noon."
+ },
+ {
+  "id": "v16",
+  "say": "Panels go only where the sun is good. There's room for twenty-eight, in rows spaced so they don't shade each other in winter."
+ },
+ {
+  "id": "v17",
+  "say": "Say this household uses three hundred and fifty units a month, about nineteen hundred rupees."
+ },
+ {
+  "id": "v18",
+  "say": "The plan: six panels, three point three kilowatts, covering all of it. After the seventy-eight thousand rupee P M Surya Ghar subsidy, it costs one laakh twenty thousand, and pays back in about five years."
+ },
+ {
+  "id": "v19",
+  "say": "And every figure says where it came from: the survey's date, the subsidy rules, the household's own rate."
+ },
+ {
+  "id": "v20",
+  "say": "Now, a what-if: what about five kilowatts? A Strands agent on Claude answers from this plan, using the same finance code as the dashboard."
+ },
+ {
+  "id": "v21",
+  "say": "The bigger system would take about nine years to pay back, not five, because the extra units would earn nothing."
+ },
+ {
+  "id": "v22",
+  "say": "Across eighty-one test questions, seven hundred and eighty-nine of seven hundred and ninety automatic checks passed, and every money figure traced back to the plan's own numbers."
+ },
+ {
+  "id": "v23",
+  "say": "One tap. A measured roof, a year of shadows, a panel plan and an honest price, before the first site visit."
+ },
+ {
+  "id": "v24",
+  "say": "That's home sol."
+ }
+]
