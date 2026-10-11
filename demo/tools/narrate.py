@@ -1,0 +1,66 @@
+"""Narration for the demo, generated locally with Kokoro-82M (Apache-2.0) through kokoro-onnx.
+
+    python narrate.py lines.json out_dir [--voice af_heart] [--speed 1.0]
+
+lines.json is a list of {"id": "vo_01", "say": "text to speak"}. `say` is written for the ear:
+"home sol" for homesol, amounts in words ("one lakh twenty thousand rupees"), no symbols.
+Writes out_dir/<id>.wav (24 kHz mono) and out_dir/durations.json, which the edit uses to place
+each line.
+
+The model and voice download once from Hugging Face (onnx-community/Kokoro-82M-v1.0-ONNX) into
+demo/.models/; huggingface.co must be reachable for that first run.
+"""
+
+import json
+import os
+import sys
+
+import numpy as np
+import soundfile
+
+MODELS = os.path.join(os.path.dirname(__file__), "..", ".models")
+REPO = "onnx-community/Kokoro-82M-v1.0-ONNX"
+
+
+def fetch(voice: str) -> tuple[str, str]:
+    """The ONNX model and a voices file holding `voice`, downloaded on first use."""
+    from huggingface_hub import hf_hub_download
+
+    os.makedirs(MODELS, exist_ok=True)
+    model = hf_hub_download(REPO, "onnx/model.onnx", local_dir=MODELS)
+    raw = hf_hub_download(REPO, f"voices/{voice}.bin", local_dir=MODELS)
+    # kokoro-onnx reads voices as a NumPy archive of (positions, 1, 256) style vectors.
+    voices = os.path.join(MODELS, f"voices-{voice}.npz")
+    if not os.path.exists(voices):
+        np.savez(voices, **{voice: np.fromfile(raw, dtype=np.float32).reshape(-1, 1, 256)})
+    return model, voices
+
+
+def main() -> None:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    opt = lambda name, default: sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+    voice, speed = opt("--voice", "af_heart"), float(opt("--speed", "1.0"))
+    lines = json.load(open(args[0]))
+    out = args[1]
+    os.makedirs(out, exist_ok=True)
+
+    from kokoro_onnx import Kokoro
+
+    model, voices = fetch(voice)
+    tts = Kokoro(model, voices)
+    durations = {}
+    for line in lines:
+        audio, sr = tts.create(line["say"], voice=voice, speed=line.get("speed", speed), lang="en-us")
+        # Trim the model's leading and trailing near-silence, keeping a short natural edge.
+        loud = np.flatnonzero(np.abs(audio) > 0.01)
+        if len(loud):
+            audio = audio[max(0, loud[0] - int(0.04 * sr)) : loud[-1] + int(0.12 * sr)]
+        path = os.path.join(out, f"{line['id']}.wav")
+        soundfile.write(path, audio.astype(np.float32), sr)
+        durations[line["id"]] = round(len(audio) / sr, 3)
+        print(f"{line['id']}: {durations[line['id']]:.2f} s  {line['say'][:70]}")
+    json.dump(durations, open(os.path.join(out, "durations.json"), "w"), indent=2)
+
+
+if __name__ == "__main__":
+    main()

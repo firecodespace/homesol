@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .wordmark { font-size: 168px; line-height: 1; }
+  .sunbar { width: 520px; margin-top: 36px; }
+  .tag { font-size: 44px; font-weight: 300; margin-top: 40px; color: var(--cream); }
+  .steps { display: flex; gap: 56px; margin-top: 70px; font-size: 28px; color: var(--muted); }
+  .steps span { display: flex; align-items: center; gap: 14px; }
+  .steps .icon { font-size: 40px; color: var(--amber); }
+</style>
+</head>
+<body class="dark">
+<div class="center">
+  <div class="wordmark">home<b>sol</b></div>
+  <div class="sunbar"></div>
+  <div class="tag">A solar plan for your home, from one tap.</div>
+  <div class="steps">
+    <span class="s1"><i class="icon">straighten</i>Measured</span>
+    <span class="s2"><i class="icon">wb_sunny</i>Simulated</span>
+    <span class="s3"><i class="icon">solar_power</i>Laid out</span>
+    <span class="s4"><i class="icon">payments</i>Priced</span>
+  </div>
+</div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 7;
+  anim(".wordmark", [[0.1, { o: 0, s: 0.94, blur: 14 }], [1.2, { o: 1, s: 1, blur: 0 }]]);
+  anim(".sunbar", [[0.6, { wipe: 0 }], [1.7, { wipe: 100 }]], "inOut");
+  anim(".tag", [[1.2, { o: 0, y: 20 }], [2.1, { o: 1, y: 0 }]]);
+  [".s1", ".s2", ".s3", ".s4"].forEach((s, i) => anim(s, [[2.6 + i * 0.45, { o: 0, y: 16 }], [3.3 + i * 0.45, { o: 1, y: 0 }]]));
+  anim(".center", [[D - 0.7, { o: 1, s: 1 }], [D, { o: 0, s: 1.03 }]], "inOut");
+  ready(D);
+</script>
+</body>
+</html>

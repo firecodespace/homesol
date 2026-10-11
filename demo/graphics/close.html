@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .statement { font-size: 54px; font-weight: 300; line-height: 1.3; max-width: 1500px; }
+  .statement em { font-style: normal; color: var(--amber); }
+  .wordmark { font-size: 132px; line-height: 1; margin-top: 70px; }
+  .sunbar { width: 420px; margin-top: 30px; }
+  .built { margin-top: 56px; font-size: 24px; color: var(--muted); letter-spacing: .04em; }
+  .built b { color: var(--cream); font-weight: 500; }
+  .extra { margin-top: 18px; font-size: 24px; color: var(--amber-soft); }
+</style>
+</head>
+<body class="dark">
+<div class="center">
+  <div class="statement"></div>
+  <div class="wordmark">home<b>sol</b></div>
+  <div class="sunbar"></div>
+  <div class="built"></div>
+  <div class="extra"></div>
+</div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 8;
+  document.querySelector(".statement").innerHTML = params.statement ?? "";
+  document.querySelector(".built").innerHTML = params.built ?? "";
+  document.querySelector(".extra").textContent = params.extra ?? "";
+  anim(".statement", [[0.2, { o: 0, y: 24, blur: 8 }], [1.3, { o: 1, y: 0, blur: 0 }]]);
+  anim(".wordmark", [[1.6, { o: 0, s: 0.95, blur: 12 }], [2.6, { o: 1, s: 1, blur: 0 }]]);
+  anim(".sunbar", [[2.1, { wipe: 0 }], [3.1, { wipe: 100 }]], "inOut");
+  anim(".built", [[3.0, { o: 0, y: 12 }], [3.8, { o: 1, y: 0 }]]);
+  anim(".extra", [[3.4, { o: 0 }], [4.2, { o: 1 }]]);
+  // The film ends on this card: it fades to black over the final second, with the music.
+  anim(".center", [[D - 1.2, { o: 1 }], [D, { o: 0 }]], "inOut");
+  ready(D);
+</script>
+</body>
+</html>

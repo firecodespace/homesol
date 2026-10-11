@@ -1,0 +1,57 @@
+/* Shared look for the demo's graphics: homesol's own type (Roboto) and Material 3 amber palette,
+   set on a warm night background so graphics read as distinct from the light app footage. */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500&display=block");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0&display=block");
+
+:root {
+  --night: #15100b;
+  --night-2: #221911;
+  --card: #2b2118;
+  --line: rgba(253, 238, 224, 0.14);
+  --cream: #fdeee0;
+  --muted: #cdb9a5;
+  --amber: #ffb951;
+  --amber-soft: #ffddb3;
+  --primary: #855300;
+  --sun: linear-gradient(90deg, #3b0764 0%, #c2410c 45%, #facc15 80%, #fef9c3 100%);
+  --panel: #0b2a6f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; }
+body {
+  font-family: Roboto, "Noto Sans Devanagari", sans-serif;
+  color: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+body.dark {
+  background:
+    radial-gradient(1200px 700px at 78% 18%, rgba(194, 65, 12, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 10% 100%, rgba(59, 7, 100, 0.22), transparent 60%),
+    var(--night);
+}
+body.clear { background: transparent; }
+
+.icon {
+  font-family: "Material Symbols Outlined";
+  font-weight: 300;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+}
+
+.kicker {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.sunbar { height: 6px; border-radius: 3px; background: var(--sun); }
+.wordmark { font-weight: 400; letter-spacing: -0.02em; }
+.wordmark b { font-weight: 500; color: var(--amber); }

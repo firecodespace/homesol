@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  /* Laid over the opening footage: the real shadow sweep across the property. A scrim on the left
+     keeps the words readable while the footage plays on the right. */
+  .scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(14,10,6,.86) 0%, rgba(14,10,6,.62) 38%, rgba(14,10,6,0) 64%); }
+  .lines { position: absolute; left: 120px; top: 50%; transform: translateY(-50%); width: 900px; }
+  .line { position: absolute; left: 0; top: 0; width: 900px; transform-origin: left center; }
+  .line h1 { font-size: 76px; font-weight: 300; line-height: 1.1; letter-spacing: -0.015em; }
+  .line h1 em { font-style: normal; color: var(--amber); font-weight: 400; }
+  .line p { font-size: 36px; line-height: 1.35; color: var(--cream); margin-top: 24px; }
+  .stamp { position: absolute; left: 120px; bottom: 90px; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: var(--amber-soft); }
+  .stamp .sunbar { width: 220px; margin-bottom: 18px; }
+</style>
+</head>
+<body class="clear">
+<div class="scrim"></div>
+<div class="lines">
+  <div class="line l1"><h1>Every roof loses sun to <em>something.</em></h1></div>
+  <div class="line l2"><h1>A stair room. A water tank. The floor next door. A tree.</h1></div>
+  <div class="line l3"><h1>How much it loses decides <em>whether solar pays.</em></h1></div>
+</div>
+<div class="stamp"><div class="sunbar"></div><span class="caption"></span></div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 15;
+  const t = params.lines ?? [0.8, 5.6, 10.2];
+  document.querySelector(".caption").textContent = params.stamp ?? "";
+  for (const [i, sel] of [".l1", ".l2", ".l3"].entries()) {
+    const start = t[i];
+    const end = i < 2 ? t[i + 1] - 0.15 : D - 0.4;
+    anim(sel, [[start, { o: 0, y: 34, blur: 10 }], [start + 1.0, { o: 1, y: 0, blur: 0 }], [end - 0.6, { o: 1, y: 0, blur: 0 }], [end, { o: 0, y: -24, blur: 6 }]]);
+  }
+  anim(".scrim", [[0, { o: 0 }], [0.6, { o: 1 }], [D - 0.6, { o: 1 }], [D, { o: 0 }]], "inOut");
+  anim(".stamp", [[0.4, { o: 0, wipe: 0 }], [1.6, { o: 1, wipe: 100 }], [D - 0.6, { o: 1 }], [D, { o: 0 }]]);
+  ready(D);
+</script>
+</body>
+</html>

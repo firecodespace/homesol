@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  /* A caption laid over the app footage: compact, bottom-left by default, clear of the panels' text. */
+  .lt { position: absolute; display: flex; gap: 22px; align-items: stretch; max-width: 900px;
+        background: rgba(27, 20, 14, 0.9); border-radius: 18px; padding: 22px 30px 24px 22px;
+        box-shadow: 0 10px 40px rgba(0,0,0,.35); backdrop-filter: blur(6px); }
+  .lt .bar { width: 6px; border-radius: 3px; background: linear-gradient(#facc15, #c2410c); flex: none; }
+  .lt .kicker { font-size: 18px; letter-spacing: 0.18em; }
+  .lt .text { font-size: 32px; line-height: 1.28; margin-top: 8px; color: var(--cream); }
+  .lt .text em { font-style: normal; color: var(--amber); }
+</style>
+</head>
+<body class="clear">
+<div class="lt"><div class="bar"></div><div><div class="kicker"></div><div class="text"></div></div></div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 5;
+  const lt = document.querySelector(".lt");
+  document.querySelector(".kicker").textContent = params.kicker ?? "";
+  if (!params.kicker) document.querySelector(".kicker").remove();
+  document.querySelector(".text").innerHTML = params.text ?? "";
+  const [x, y] = params.at ?? [72, null];
+  lt.style.left = x + "px";
+  if (y === null) lt.style.bottom = (params.bottom ?? 72) + "px";
+  else lt.style.top = y + "px";
+  if (params.width) lt.style.maxWidth = params.width + "px";
+  anim(lt, [[0.05, { o: 0, y: 24 }], [0.6, { o: 1, y: 0 }], [D - 0.45, { o: 1, y: 0 }], [D - 0.05, { o: 0, y: 10 }]]);
+  ready(D);
+</script>
+</body>
+</html>

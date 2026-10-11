@@ -1,0 +1,14 @@
+# Tool environments and downloaded models
+/.venv/
+/.models/
+
+# Media is regenerated from the tools or delivered directly, not committed
+/demo_assets/raw/
+/demo_assets/test/
+/demo_assets/graphics/
+/demo_assets/audio/*.wav
+/demo_assets/audio/*.png
+/demo_assets/stills/
+*.mkv
+*.mov
+*.mp4

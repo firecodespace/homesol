@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  /* The advisor's measured test results. Every figure comes from the summary file named at the
+     bottom, passed in by the edit script verbatim. */
+  .wrap { position: absolute; inset: 0; padding: 110px 130px; }
+  h1 { font-size: 68px; font-weight: 300; line-height: 1.12; letter-spacing: -0.01em; margin-top: 20px; max-width: 1500px; }
+  .grid { display: grid; grid-template-columns: 560px 1fr; gap: 56px; margin-top: 64px; }
+  .stats { display: grid; gap: 22px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 24px 30px; }
+  .stat b { display: block; font-size: 54px; font-weight: 400; color: var(--amber); letter-spacing: -0.01em; }
+  .stat span { display: block; font-size: 23px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .file { background: #0f0b07; border: 1px solid var(--line); border-radius: 22px; padding: 26px 34px; font-family: "Roboto Mono", monospace; font-size: 22px; line-height: 1.75; color: #e9dccd; white-space: pre; overflow: hidden; }
+  .file .path { color: var(--muted); font-size: 18px; margin-bottom: 14px; display: block; }
+  .file .hl { color: #facc15; }
+  .note { position: absolute; left: 130px; right: 130px; bottom: 70px; font-size: 21px; color: var(--muted); }
+</style>
+</head>
+<body class="dark">
+<div class="wrap">
+  <div class="kicker">Checked, not assumed</div>
+  <h1>The advisor answered 81 test questions<br>about 11 different households.</h1>
+  <div class="grid">
+    <div class="stats">
+      <div class="stat st1"><b class="v1"></b><span class="k1"></span></div>
+      <div class="stat st2"><b class="v2"></b><span class="k2"></span></div>
+      <div class="stat st3"><b class="v3"></b><span class="k3"></span></div>
+    </div>
+    <div class="file"><span class="path"></span><span class="lines"></span></div>
+  </div>
+</div>
+<div class="note"></div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 12;
+  const stats = params.stats ?? [];
+  stats.forEach(([v, k], i) => {
+    document.querySelector(`.v${i + 1}`).textContent = v;
+    document.querySelector(`.k${i + 1}`).textContent = k;
+  });
+  document.querySelector(".path").textContent = params.path ?? "";
+  // Lines from the summary file, verbatim; those named in `highlight` are picked out.
+  document.querySelector(".lines").innerHTML = (params.lines ?? [])
+    .map((l) => {
+      const safe = l.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      return (params.highlight ?? []).some((h) => l.startsWith(h)) ? `<span class="hl">${safe}</span>` : safe;
+    })
+    .join("\n");
+  document.querySelector(".note").textContent = params.note ?? "";
+  anim(".kicker", [[0.2, { o: 0, y: 14 }], [0.9, { o: 1, y: 0 }]]);
+  anim("h1", [[0.35, { o: 0, y: 26, blur: 8 }], [1.3, { o: 1, y: 0, blur: 0 }]]);
+  [".st1", ".st2", ".st3"].forEach((s, i) => anim(s, [[1.6 + i * 0.7, { o: 0, x: -26 }], [2.4 + i * 0.7, { o: 1, x: 0 }]]));
+  anim(".file", [[2.0, { o: 0, y: 26 }], [2.9, { o: 1, y: 0 }]]);
+  anim(".note", [[3.5, { o: 0 }], [4.3, { o: 1 }]]);
+  anim(".wrap", [[D - 0.6, { o: 1 }], [D, { o: 0 }]], "inOut");
+  anim(".note", [[D - 0.6, { o: 1 }], [D, { o: 0 }]], "inOut");
+  ready(D);
+</script>
+</body>
+</html>

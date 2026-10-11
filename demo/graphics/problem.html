@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .stage { position: absolute; inset: 0; padding: 120px 140px; }
+  .head { position: absolute; left: 140px; top: 120px; }
+  .head h1 { font-size: 84px; font-weight: 300; line-height: 1.08; letter-spacing: -0.015em; margin-top: 22px; white-space: nowrap; }
+  .cards { position: absolute; left: 140px; right: 140px; top: 470px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 34px 32px 36px; min-height: 300px; }
+  .card .icon { font-size: 52px; color: var(--amber); }
+  .card h2 { font-size: 34px; font-weight: 500; line-height: 1.18; margin-top: 26px; }
+  .card p { font-size: 22px; line-height: 1.4; color: var(--muted); margin-top: 14px; }
+  .today { position: absolute; left: 140px; right: 140px; bottom: 96px; display: flex; align-items: center; gap: 28px; }
+  .today .icon { font-size: 56px; color: var(--amber-soft); }
+  .today p { font-size: 38px; font-weight: 400; line-height: 1.3; }
+  .today p em { font-style: normal; color: var(--amber); }
+</style>
+</head>
+<body class="dark">
+<div class="stage">
+  <div class="head">
+    <div class="kicker">Before going solar</div>
+    <h1>Every household needs four answers.</h1>
+  </div>
+  <div class="cards">
+    <div class="card c1"><span class="icon">roofing</span><h2>Where can panels actually fit?</h2><p>Edges, tanks and stair rooms take their share of the roof.</p></div>
+    <div class="card c2"><span class="icon">wb_twilight</span><h2>What shades them, and when?</h2><p>The floor next door or a tree can take hours of sun.</p></div>
+    <div class="card c3"><span class="icon">bolt</span><h2>How much will they make?</h2><p>Sun, tilt, season and shade all change it.</p></div>
+    <div class="card c4"><span class="icon">payments</span><h2>What will it really cost?</h2><p>Subsidy, tariff slabs and net-metering rules.</p></div>
+  </div>
+  <div class="today">
+    <span class="icon">assignment</span>
+    <p>Today the answers come from a site visit and a round of quotes, <em>and the household can't check any of them.</em></p>
+  </div>
+</div>
+<script type="module">
+  import { anim, ready, params } from "./lib.js";
+  const D = params.duration ?? 25;
+  anim(".head .kicker", [[0.3, { o: 0, y: 16 }], [1.0, { o: 1, y: 0 }]]);
+  anim(".head h1", [[0.5, { o: 0, y: 30, blur: 8 }], [1.5, { o: 1, y: 0, blur: 0 }]]);
+  // Kicker and headline rise together to make room for the questions.
+  anim(".head", [[3.4, { y: 60 }], [4.3, { y: 0 }]], "inOut");
+  // Each question arrives as the narration asks it.
+  const at = params.cards ?? [4.0, 6.6, 9.2, 11.6];
+  [".c1", ".c2", ".c3", ".c4"].forEach((c, i) =>
+    anim(c, [[at[i], { o: 0, y: 40 }], [at[i] + 0.8, { o: 1, y: 0 }], [params.today ?? 15.5, { o: 1 }], [(params.today ?? 15.5) + 0.8, { o: 0.5 }]]),
+  );
+  const today = params.today ?? 15.5;
+  anim(".today", [[today, { o: 0, y: 26 }], [today + 0.9, { o: 1, y: 0 }]]);
+  anim(".stage", [[0, { o: 1 }], [D - 0.6, { o: 1 }], [D, { o: 0 }]], "inOut");
+  ready(D);
+</script>
+</body>
+</html>
