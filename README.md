@@ -2,9 +2,9 @@
 
 **Solar planning for any property, anywhere.** Tap your roof, or outline a piece of land, and get the whole decision on one screen: where each panel would go, what shades it and when, how much it would generate, and what it would cost and save after subsidy. Then ask questions about your own plan in English or Hindi, by typing or speaking.
 
-**Live:** https://main.d37cbq8cojkdix.amplifyapp.com · **How every part works:** [docs/how-it-works.md](docs/how-it-works.md) · **Status and open work:** [docs/handoff.md](docs/handoff.md)
+**▶ Watch the 3-minute demo:** https://www.youtube.com/watch?v=QwJxYxqNJF4
 
-<!-- Demo video: add the YouTube link here, e.g. **Demo (3 min):** https://youtu.be/... -->
+**Live:** https://main.d37cbq8cojkdix.amplifyapp.com · **How every part works:** [docs/how-it-works.md](docs/how-it-works.md) · **Status and open work:** [docs/handoff.md](docs/handoff.md)
 
 ![homesol's plan for a flat roof in Chandigarh: 3.3 kW, 6 panels, ₹1,20,000 after a ₹78,000 subsidy, paying for itself in 5.2 years. The roof is coloured by its year's sunlight, with each panel drawn to size and the shade-casting trees outlined in red.](docs/images/plan.jpg)
 

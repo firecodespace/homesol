@@ -26,7 +26,7 @@ The owner's bar is "a winning project": every system precise, on real data, in a
 | Website code | `web/` (Next.js 16 static export, React 19, MapLibre, Tailwind 4, zustand) |
 | API code | `api/homesol/` (FastAPI, Strands Agents, numpy) |
 | Deploy | `scripts/deploy.sh` (needs the AWS CLI logged in and `api/.env`) |
-| Demo video | `demo/`: script, shot list and the tools that recorded and assembled it. The video files are not in git |
+| Demo video | https://www.youtube.com/watch?v=QwJxYxqNJF4. `demo/` holds its script, shot list and the tools that recorded and assembled it; the video files are not in git |
 
 **Everything described here is committed on `main`.** The live site and API were last deployed on 11 October 2026, before the rate limits (section 20 of the reference). Until `scripts/deploy.sh` is run again, the live API has no rate limits and the website has no limit banner; the script also creates the `homesol-limits` table and the permission to use it.
 
