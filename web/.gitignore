@@ -20,6 +20,9 @@
 # production
 /build
 
+# copied from node_modules by `pnpm copy-worker`
+/public/maplibre-gl-worker.mjs
+
 # misc
 .DS_Store
 *.pem

@@ -79,6 +79,8 @@ Three rules run through the design:
 
 Pointing at an obstruction, or tapping it on a touch screen, shows its name, where it is, how far it stands above the surface, the share of shade it causes and a one-sentence explanation. The same on a panel shows whether it is in the plan and its share of sun.
 
+**Where the property is.** Once a property is chosen, a card in the map's top-right corner gives its address and the coordinates of the outline's centre (`PinnedLocation` in `MapControls.tsx`). The address comes from the same Photon reverse lookup that finds the country and state (`placeFrom` in `web/src/lib/api.ts`): building or street and neighbourhood on the first line, then town, state, postcode and country. Where Photon knows no street, the card shows only the town line; where the lookup fails, only the coordinates. When the map is too narrow for the view buttons and the card on one line, the card moves down to a second line, still on the right.
+
 **Settings.**
 | Setting | Where | Value |
 |---|---|---|
@@ -600,6 +602,8 @@ On screens narrower than 1,024 pixels the three stack: map, then tools, then res
 
 Tools appear as they become relevant: electricity after a property is chosen, cost details after electricity use is known.
 
+**A new property starts empty.** "Change property", or opening someone's shared link, clears everything that belonged to the last one (`NO_PROPERTY` in `web/src/lib/store.ts`): electricity use, bill amount, vendor's quote, sanctioned load, electricity company, floors, marked obstructions, skyline scan, the advisor conversation and the saved link. Only how the map is shown (view, toggles, shadow time) is kept. Reloading the page restores the last property with its own figures. Because planning another slope of the same roof also goes through "Change property", the household's figures have to be entered again for it.
+
 **Limits.** The styling follows Material Design 3's roles and shapes but is hand-built, not Google's component library, so details such as ripple effects and floating labels are absent. There is a light theme only. Text is English only (the advisor answers in other languages).
 
 ---
@@ -608,7 +612,7 @@ Tools appear as they become relevant: electricity after a property is chosen, co
 
 | What | How | Limit |
 |---|---|---|
-| Address search | Photon, worldwide | Community service |
+| Address search, and the chosen property's address | Photon, worldwide | Community service; how much street detail the address has depends on OpenStreetMap's coverage |
 | 3D survey | Google Solar API | Coverage is uneven: dense in the US, Europe, Japan and large cities elsewhere; patchy in rural areas and much of Africa. Without it, section 9 |
 | Sun position | SunCalc, any latitude | Polar day and night are untested |
 | Time | `web/src/lib/time.ts`: the property's time zone from its coordinates (`tz-lookup`), daylight saving included | The scrubber and clear-hours table are in the property's local time, not the viewer's |
@@ -655,4 +659,4 @@ Tools appear as they become relevant: electricity after a property is chosen, co
 - A first request after idle time is slower while the Lambda starts.
 - Region is `us-east-1`. Property locations and bill photos are processed there.
 
-**Tests.** `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101) and `pnpm test` in `web/` (50). None calls a paid service. Running the advisor's test set itself (`api/evals/run.py`, section 14) does.
+**Tests.** `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101) and `pnpm test` in `web/` (58). None calls a paid service. Running the advisor's test set itself (`api/evals/run.py`, section 14) does.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchFinance, fetchPolicy, placeAt, type Finance, type Place, type PolicyOverview } from "./api";
-import { centroid } from "./geo/local";
+import { centroid, type LngLat } from "./geo/local";
 import type { Analysis } from "./site/analysis";
 import type { Sizing } from "./solar/sizing";
 import type { YieldBasis } from "./solar/yield";
@@ -30,8 +30,13 @@ export interface Money {
 export function useMoney(analysis: Analysis | null): Money {
   const { roof, place, monthlyUnits, monthlyBill, quotedCost, discomId, sanctionedLoadKw, setMoney } = useStore();
   const { sizing, basis } = useSizing(analysis);
-  const [policy, setPolicy] = useState<PolicyOverview | null>(null);
-  const [result, setResult] = useState<{ finance: Finance } | { error: string } | null>(null);
+  // Each is kept with the outline it was worked out for, so a new property never shows the last one's.
+  const [policyFor, setPolicyFor] = useState<{ roof: LngLat[]; policy: PolicyOverview | null } | null>(null);
+  const [resultFor, setResultFor] = useState<({ roof: LngLat[] } & ({ finance: Finance } | { error: string })) | null>(
+    null,
+  );
+  const policy = policyFor && policyFor.roof === roof ? policyFor.policy : null;
+  const result = resultFor && resultFor.roof === roof ? resultFor : null;
 
   // Find the property's country, and in India match its state to a distributor unless the user chose one.
   useEffect(() => {
@@ -41,13 +46,13 @@ export function useMoney(analysis: Analysis | null): Money {
       .then(async (found) => {
         if (!current) return;
         useStore.setState({ place: found });
-        if (found && found.countryCode !== "IN") return setPolicy(null);
+        if (found && found.countryCode !== "IN") return setPolicyFor({ roof, policy: null });
         const overview = await fetchPolicy(found?.state ?? null);
         if (!current) return;
-        setPolicy(overview);
+        setPolicyFor({ roof, policy: overview });
         if (useStore.getState().discomId === null) setMoney({ discomId: overview.matched ?? OTHER_DISCOM });
       })
-      .catch((err: Error) => current && setResult({ error: err.message }));
+      .catch((err: Error) => current && setResultFor({ roof, error: err.message }));
     return () => {
       current = false;
     };
@@ -59,7 +64,7 @@ export function useMoney(analysis: Analysis | null): Money {
   const ready = Boolean(sizing && sizing.panels > 0 && monthlyUnits && (discom || monthlyBill));
 
   useEffect(() => {
-    if (!ready || !sizing || !monthlyUnits) return;
+    if (!ready || !roof || !sizing || !monthlyUnits) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetchFinance(
@@ -76,16 +81,16 @@ export function useMoney(analysis: Analysis | null): Money {
         },
         controller.signal,
       )
-        .then((finance) => setResult({ finance }))
+        .then((finance) => setResultFor({ roof, finance }))
         .catch((err: Error) => {
-          if (err.name !== "AbortError") setResult({ error: err.message });
+          if (err.name !== "AbortError") setResultFor({ roof, error: err.message });
         });
     }, 300);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, sizing, monthlyUnits, discom, monthlyBill, quotedCost, sanctionedLoadKw, place, currency]);
+  }, [ready, roof, sizing, monthlyUnits, discom, monthlyBill, quotedCost, sanctionedLoadKw, place, currency]);
 
   return {
     sizing,

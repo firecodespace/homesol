@@ -36,7 +36,10 @@ export default function Planner() {
     void Promise.resolve(useStore.persist.rehydrate()).then(async () => {
       if (code) {
         try {
-          useStore.setState((await loadSurvey(code)).survey);
+          const { survey } = await loadSurvey(code);
+          // A shared survey is its own property: nothing from this device's last one carries over.
+          useStore.getState().clearRoof();
+          useStore.setState(survey);
         } catch {
           // Fall back to whatever this device already has.
         }

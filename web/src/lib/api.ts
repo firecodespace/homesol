@@ -154,6 +154,25 @@ export interface Place {
   state: string | null;
   /** Three-letter currency code. */
   currency: string;
+  /** The most specific part of the address (building, street, neighbourhood), when the lookup has one. */
+  address: string | null;
+  /** The rest of the address on one line: town, state and postcode, country. */
+  region: string;
+}
+
+/** What Photon's reverse lookup says about a point; any of it may be missing. */
+export interface PhotonAddress {
+  name?: string;
+  housenumber?: string;
+  street?: string;
+  locality?: string;
+  district?: string;
+  city?: string;
+  county?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  countrycode?: string;
 }
 
 const CURRENCIES: Record<string, string> = {
@@ -164,23 +183,37 @@ const CURRENCIES: Record<string, string> = {
 };
 const EURO = ["AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK"];
 
-/** Country, state and currency of a point, by reverse geocoding. */
+/** A place from a reverse lookup's address, or null when it does not say which country. */
+export function placeFrom(p: PhotonAddress | undefined): Place | null {
+  if (!p?.countrycode) return null;
+  const countryCode = p.countrycode.toUpperCase();
+  const country = p.country ?? countryCode;
+  const city = p.city ?? p.county;
+  const wider = [city, [p.state, p.postcode].filter(Boolean).join(" "), country];
+  // Building, street, then neighbourhood, leaving out anything said already or repeated by the region line.
+  const street = [p.housenumber, p.street].filter(Boolean).join(" ");
+  const name = p.name && !street.includes(p.name) ? p.name : undefined;
+  const local = [name, street, p.locality, p.district].filter(
+    (part): part is string => Boolean(part) && part !== city && part !== p.state && part !== country,
+  );
+  return {
+    countryCode,
+    country,
+    state: p.state ?? null,
+    currency: CURRENCIES[countryCode] ?? (EURO.includes(countryCode) ? "EUR" : "USD"),
+    address: [...new Set(local)].slice(0, 3).join(", ") || null,
+    region: [...new Set(wider.filter(Boolean))].join(", "),
+  };
+}
+
+/** Address, country, state and currency of a point, by reverse geocoding. */
 export async function placeAt([lng, lat]: LngLat): Promise<Place | null> {
   try {
-    const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng.toFixed(4)}&lat=${lat.toFixed(4)}`);
+    // Five decimals is about a metre, so the address is the property's and not the street's next door.
+    const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng.toFixed(5)}&lat=${lat.toFixed(5)}`);
     if (!res.ok) return null;
-    const body = (await res.json()) as {
-      features: { properties: { state?: string; country?: string; countrycode?: string } }[];
-    };
-    const p = body.features[0]?.properties;
-    if (!p?.countrycode) return null;
-    const countryCode = p.countrycode.toUpperCase();
-    return {
-      countryCode,
-      country: p.country ?? countryCode,
-      state: p.state ?? null,
-      currency: CURRENCIES[countryCode] ?? (EURO.includes(countryCode) ? "EUR" : "USD"),
-    };
+    const body = (await res.json()) as { features: { properties: PhotonAddress }[] };
+    return placeFrom(body.features[0]?.properties);
   } catch {
     return null;
   }

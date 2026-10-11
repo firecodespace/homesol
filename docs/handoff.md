@@ -53,7 +53,7 @@ Checked on real data in a browser unless stated otherwise.
 | Layout | No overflow or wrapped buttons at 375, 1024, 1280 and 1440 px |
 | Live deployment | `/site`, `/site/names`, `/bill`, `/finance`, `/advise` answered correctly from Lambda; the site loaded and ran end to end |
 
-Tests, none of which calls a paid service: `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101), `pnpm test` in `web/` (50). `npx tsc --noEmit` and `pnpm lint` in `web/` are clean.
+Tests, none of which calls a paid service: `api/.venv/bin/python -m pytest api/tests` (42), `api/.venv/bin/python -m pytest api/evals` (101), `pnpm test` in `web/` (58). `npx tsc --noEmit` and `pnpm lint` in `web/` are clean.
 
 ## Not verified
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Place } from "@/lib/api";
+import { centroid, type LngLat } from "@/lib/geo/local";
 import type { Analysis } from "@/lib/site/analysis";
 import type { SunPosition } from "@/lib/solar/sun";
 import { useStore, type MapView } from "@/lib/store";
@@ -15,9 +17,29 @@ const VIEWS: { id: MapView; label: string; icon: string }[] = [
 const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 
-/** What is drawn on the map, and for the shadow view, the moment it shows. */
+/** Where the chosen property is: its address as far as the lookup knows it, and its coordinates. */
+function PinnedLocation({ roof, place }: { roof: LngLat[]; place: Place | null }) {
+  const [lng, lat] = centroid(roof);
+  const coordinates = `${Math.abs(lat).toFixed(5)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lng).toFixed(5)}° ${lng >= 0 ? "E" : "W"}`;
+  const title = place?.address ?? place?.region ?? coordinates;
+  return (
+    <section
+      aria-label="Location of your property"
+      className="pointer-events-auto ml-auto flex max-w-80 min-w-0 items-start gap-2 rounded-md bg-surface py-2 pr-4 pl-3 shadow-level1"
+    >
+      <Icon name="location_on" className="text-[20px] text-primary" />
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-sm font-medium text-on-surface">{title}</p>
+        {place?.address && <p className="md-supporting line-clamp-2">{place.region}</p>}
+        {title !== coordinates && <p className="md-supporting mt-0.5 tabular-nums">{coordinates}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** What is drawn on the map, and for the shadow view, the moment it shows; and where the property is. */
 export default function MapControls({ analysis, sun, zone }: { analysis: Analysis | null; sun: SunPosition | null; zone: string }) {
-  const { mode, view, showPanels, showObstructions, preview, setPreview } = useStore();
+  const { mode, view, showPanels, showObstructions, preview, setPreview, roof, place } = useStore();
   const [playing, setPlaying] = useState(false);
   const minutes = useRef(preview.minutes);
   useEffect(() => {
@@ -32,48 +54,54 @@ export default function MapControls({ analysis, sun, zone }: { analysis: Analysi
     return () => clearInterval(timer);
   }, [playing, view, setPreview]);
 
-  if (!analysis || mode !== "idle") return null;
-  const measured = analysis.model.measured;
+  // Everything here steps aside while the user draws on the map.
+  if (mode !== "idle" || (!analysis && !roof)) return null;
+  const measured = analysis?.model.measured;
 
   return (
     <>
       <div className="pointer-events-none absolute left-3 top-3 right-3 flex flex-wrap items-start gap-2">
-        <div className="pointer-events-auto flex overflow-hidden rounded-full border border-outline bg-surface shadow-level1" role="group" aria-label="What the map shows">
-          {VIEWS.map((v) => (
+        {analysis && (
+          <>
+            <div className="pointer-events-auto flex overflow-hidden rounded-full border border-outline bg-surface shadow-level1" role="group" aria-label="What the map shows">
+              {VIEWS.map((v) => (
+                <button
+                  key={v.id}
+                  className={`flex h-10 items-center gap-1.5 border-r border-outline px-4 text-sm font-medium last:border-r-0 ${
+                    view === v.id ? "bg-secondary-container text-on-secondary-container" : "text-on-surface hover:bg-on-surface/8"
+                  }`}
+                  aria-pressed={view === v.id}
+                  onClick={() => useStore.setState({ view: v.id })}
+                >
+                  <Icon name={view === v.id ? "check" : v.icon} className="text-[18px]" />
+                  {v.label}
+                </button>
+              ))}
+            </div>
             <button
-              key={v.id}
-              className={`flex h-10 items-center gap-1.5 border-r border-outline px-4 text-sm font-medium last:border-r-0 ${
-                view === v.id ? "bg-secondary-container text-on-secondary-container" : "text-on-surface hover:bg-on-surface/8"
-              }`}
-              aria-pressed={view === v.id}
-              onClick={() => useStore.setState({ view: v.id })}
+              className={`pointer-events-auto md-chip bg-surface shadow-level1 ${showPanels ? "border-transparent bg-secondary-container text-on-secondary-container" : ""}`}
+              aria-pressed={showPanels}
+              onClick={() => useStore.setState({ showPanels: !showPanels })}
             >
-              <Icon name={view === v.id ? "check" : v.icon} className="text-[18px]" />
-              {v.label}
+              <Icon name={showPanels ? "check" : "solar_power"} className="mr-1.5 text-[18px]" />
+              Panels
             </button>
-          ))}
-        </div>
-        <button
-          className={`pointer-events-auto md-chip bg-surface shadow-level1 ${showPanels ? "border-transparent bg-secondary-container text-on-secondary-container" : ""}`}
-          aria-pressed={showPanels}
-          onClick={() => useStore.setState({ showPanels: !showPanels })}
-        >
-          <Icon name={showPanels ? "check" : "solar_power"} className="mr-1.5 text-[18px]" />
-          Panels
-        </button>
-        {measured && (
-          <button
-            className={`pointer-events-auto md-chip bg-surface shadow-level1 ${showObstructions ? "border-transparent bg-secondary-container text-on-secondary-container" : ""}`}
-            aria-pressed={showObstructions}
-            onClick={() => useStore.setState({ showObstructions: !showObstructions })}
-          >
-            <Icon name={showObstructions ? "check" : "domain"} className="mr-1.5 text-[18px]" />
-            What casts shade
-          </button>
+            {measured && (
+              <button
+                className={`pointer-events-auto md-chip bg-surface shadow-level1 ${showObstructions ? "border-transparent bg-secondary-container text-on-secondary-container" : ""}`}
+                aria-pressed={showObstructions}
+                onClick={() => useStore.setState({ showObstructions: !showObstructions })}
+              >
+                <Icon name={showObstructions ? "check" : "domain"} className="mr-1.5 text-[18px]" />
+                What casts shade
+              </button>
+            )}
+          </>
         )}
+        {roof && <PinnedLocation roof={roof} place={place} />}
       </div>
 
-      {view === "shadows" && (
+      {analysis && view === "shadows" && (
         <div className="absolute bottom-3 left-3 right-14 mx-auto max-w-xl rounded-lg bg-surface p-3 shadow-level2">
           <div className="flex items-center gap-3">
             <button

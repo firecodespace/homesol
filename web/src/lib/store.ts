@@ -113,7 +113,10 @@ interface State {
   setMoney(patch: Partial<Pick<State, "monthlyBill" | "quotedCost" | "discomId" | "sanctionedLoadKw">>): void;
 }
 
-/** What a new property starts from: nothing found, nothing asked, nothing shared. */
+/**
+ * What a new property starts from: nothing found, nothing asked, nothing shared, and none of the
+ * last property's electricity or cost figures, which belonged to that household.
+ */
 const NO_PROPERTY = {
   roof: null,
   pick: null,
@@ -124,8 +127,13 @@ const NO_PROPERTY = {
   place: null,
   chat: { turns: [], waiting: false, error: null },
   shared: null,
+  floors: 2,
   obstructions: [] as Obstruction[],
   horizon: null,
+  monthlyUnits: null,
+  monthlyBill: null,
+  quotedCost: null,
+  sanctionedLoadKw: null,
   discomId: null,
   lastDetectionId: null,
   draft: [] as LngLat[],
@@ -138,12 +146,7 @@ export const useStore = create<State>()(
       ...NO_PROPERTY,
       mode: "idle",
       hydrated: false,
-      floors: 2,
       scanOpen: false,
-      monthlyUnits: null,
-      monthlyBill: null,
-      quotedCost: null,
-      sanctionedLoadKw: null,
       view: "sun",
       showPanels: true,
       showObstructions: true,
