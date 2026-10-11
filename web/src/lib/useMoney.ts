@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchFinance, fetchPolicy, stateAt, type Finance, type PolicyOverview } from "./api";
+import { fetchFinance, fetchPolicy, placeAt, type Finance, type Place, type PolicyOverview } from "./api";
 import { centroid } from "./geo/local";
-import type { ShadingResult } from "./solar/shading";
+import type { Analysis } from "./site/analysis";
 import type { Sizing } from "./solar/sizing";
 import { useStore } from "./store";
 import { useSizing } from "./useSizing";
@@ -16,22 +16,30 @@ export interface Money {
   error: string | null;
   /** The chosen distributor when homesol has tariff data for it. */
   discom: string | null;
+  place: Place | null;
+  /** Currency every amount is in. */
+  currency: string;
+  /** Whether homesol has subsidy, tariff and price data for this country. */
+  hasPolicyData: boolean;
 }
 
 /** The household's recommended system and what it costs and saves. */
-export function useMoney(analysis: ShadingResult | null): Money {
-  const { roof, monthlyUnits, monthlyBill, quotedCost, discomId, sanctionedLoadKw, setMoney } = useStore();
+export function useMoney(analysis: Analysis | null): Money {
+  const { roof, place, monthlyUnits, monthlyBill, quotedCost, discomId, sanctionedLoadKw, setMoney } = useStore();
   const { sizing } = useSizing(analysis);
   const [policy, setPolicy] = useState<PolicyOverview | null>(null);
   const [result, setResult] = useState<{ finance: Finance } | { error: string } | null>(null);
 
-  // Match the roof's state to a distributor once, unless the user already chose.
+  // Find the property's country, and in India match its state to a distributor unless the user chose one.
   useEffect(() => {
     if (!roof) return;
     let current = true;
-    stateAt(centroid(roof))
-      .then(fetchPolicy)
-      .then((overview) => {
+    placeAt(centroid(roof))
+      .then(async (found) => {
+        if (!current) return;
+        useStore.setState({ place: found });
+        if (found && found.countryCode !== "IN") return setPolicy(null);
+        const overview = await fetchPolicy(found?.state ?? null);
         if (!current) return;
         setPolicy(overview);
         if (useStore.getState().discomId === null) setMoney({ discomId: overview.matched ?? OTHER_DISCOM });
@@ -42,7 +50,9 @@ export function useMoney(analysis: ShadingResult | null): Money {
     };
   }, [roof, setMoney]);
 
-  const discom = discomId && discomId !== OTHER_DISCOM ? discomId : null;
+  const india = !place || place.countryCode === "IN";
+  const currency = place?.currency ?? "INR";
+  const discom = india && discomId && discomId !== OTHER_DISCOM ? discomId : null;
   const ready = Boolean(sizing && sizing.panels > 0 && monthlyUnits && (discom || monthlyBill));
 
   useEffect(() => {
@@ -58,6 +68,8 @@ export function useMoney(analysis: ShadingResult | null): Money {
           monthly_bill: monthlyBill,
           quoted_cost: quotedCost,
           sanctioned_load_kw: sanctionedLoadKw,
+          country_code: place?.countryCode ?? "IN",
+          currency,
         },
         controller.signal,
       )
@@ -70,7 +82,7 @@ export function useMoney(analysis: ShadingResult | null): Money {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [ready, sizing, monthlyUnits, discom, monthlyBill, quotedCost, sanctionedLoadKw]);
+  }, [ready, sizing, monthlyUnits, discom, monthlyBill, quotedCost, sanctionedLoadKw, place, currency]);
 
   return {
     sizing,
@@ -78,5 +90,8 @@ export function useMoney(analysis: ShadingResult | null): Money {
     finance: ready && result && "finance" in result ? result.finance : null,
     error: result && "error" in result ? result.error : null,
     discom,
+    place,
+    currency,
+    hasPolicyData: india,
   };
 }

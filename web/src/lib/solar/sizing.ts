@@ -9,13 +9,15 @@ export interface SizingInput {
   monthlyIrradiance: number[];
   /** Units (kWh) on a typical monthly electricity bill. */
   monthlyUsageKwh: number;
-  /** Largest system the unshaded part of the roof can hold. */
-  roofCapacityKw: number;
-  /** Share of yearly direct sun reaching the panel area, 0–1. */
-  solarAccess: number;
+  /**
+   * Share of open-sky sun each good panel position gets, best first. The system
+   * uses as many of these as it needs, starting with the sunniest.
+   */
+  panelAccess: number[];
 }
 
 export interface Sizing {
+  /** How many panels, taken from the front of `panelAccess`. */
   panels: number;
   systemKw: number;
   /** Expected generation per month, kWh, Jan–Dec. */
@@ -27,30 +29,32 @@ export interface Sizing {
   limitedBy: "usage" | "roof";
 }
 
-/** Units one kW of panels generates in each month. 1 kW under 1 kWh/m²/day yields 1 kWh/day before losses. */
-function monthlyYieldPerKw(irradiance: number[], solarAccess: number): number[] {
-  return irradiance.map((sun, i) => sun * DAYS_IN_MONTH[i] * PERFORMANCE_RATIO * solarAccess);
+/** Units one panel in full sun generates in each month. 1 kW under 1 kWh/m²/day yields 1 kWh/day before losses. */
+function monthlyYieldPerPanel(irradiance: number[]): number[] {
+  return irradiance.map((sun, i) => sun * DAYS_IN_MONTH[i] * PERFORMANCE_RATIO * PANEL_KW);
 }
 
-/** Smallest whole-panel system that covers the year's usage, or the most the roof holds. */
-export function sizeSystem({ monthlyIrradiance, monthlyUsageKwh, roofCapacityKw, solarAccess }: SizingInput): Sizing {
-  const perKw = monthlyYieldPerKw(monthlyIrradiance, solarAccess);
-  const annualPerKw = perKw.reduce((a, b) => a + b, 0);
+/** The fewest panels, sunniest positions first, that cover the year's usage; or every good position. */
+export function sizeSystem({ monthlyIrradiance, monthlyUsageKwh, panelAccess }: SizingInput): Sizing {
+  const perPanel = monthlyYieldPerPanel(monthlyIrradiance);
+  const annualPerPanel = perPanel.reduce((a, b) => a + b, 0);
   const annualUsage = monthlyUsageKwh * 12;
 
-  const panelsWanted = annualPerKw > 0 ? Math.ceil(annualUsage / annualPerKw / PANEL_KW) : 0;
-  const panelsThatFit = Math.floor(roofCapacityKw / PANEL_KW);
-  const panels = Math.min(panelsWanted, panelsThatFit);
-  const systemKw = panels * PANEL_KW;
+  let panels = 0;
+  let accessUsed = 0;
+  while (panels < panelAccess.length && accessUsed * annualPerPanel < annualUsage) {
+    accessUsed += panelAccess[panels];
+    panels++;
+  }
 
-  const monthlyKwh = perKw.map((kwh) => kwh * systemKw);
-  const annualKwh = monthlyKwh.reduce((a, b) => a + b, 0);
+  const monthlyKwh = perPanel.map((kwh) => kwh * accessUsed);
+  const annualKwh = annualPerPanel * accessUsed;
   return {
     panels,
-    systemKw,
+    systemKw: panels * PANEL_KW,
     monthlyKwh,
     annualKwh,
     coverage: annualUsage > 0 ? Math.min(1, annualKwh / annualUsage) : 0,
-    limitedBy: panelsWanted > panelsThatFit ? "roof" : "usage",
+    limitedBy: annualKwh < annualUsage ? "roof" : "usage",
   };
 }

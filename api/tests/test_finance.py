@@ -156,3 +156,20 @@ def test_clean_answer_strips_reasoning_markdown_and_unknown_links():
     assert "example.com" not in cleaned
     assert "apply here (https://pmsuryaghar.gov.in)" in cleaned
     assert cleaned.endswith("- Get a quote")
+
+
+def test_outside_india_uses_the_bill_and_a_quote_with_no_subsidy():
+    abroad = dict(system_kw=4.4, monthly_generation=[500] * 12, monthly_usage=500, country_code="US", currency="USD")
+    with pytest.raises(ValueError):
+        finance.estimate(**abroad)
+
+    no_quote = finance.estimate(monthly_bill=150, **abroad)
+    assert no_quote.currency == "USD" and no_quote.subsidy == 0
+    assert no_quote.gross_cost is None and no_quote.net_cost is None and no_quote.payback_years is None
+    assert no_quote.first_year_savings == 150 * 12
+
+    quoted = finance.estimate(monthly_bill=150, quoted_cost=12000, **abroad)
+    assert quoted.net_cost == 12000 and quoted.gross_cost_range is None
+    assert 6 < quoted.payback_years < 7
+    # A distributor id from India is ignored elsewhere.
+    assert finance.estimate(monthly_bill=150, discom_id="msedcl", **abroad).rate_basis == "your_bill"

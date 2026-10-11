@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { centroid, type LngLat } from "./geo/local";
+import { useEffect, useMemo, useState } from "react";
+import type { LngLat } from "./geo/local";
 import { fetchMonthlyIrradiance } from "./irradiance";
-import type { ShadingResult } from "./solar/shading";
+import type { Analysis } from "./site/analysis";
 import { sizeSystem, type Sizing } from "./solar/sizing";
 import { useStore } from "./store";
 
@@ -20,31 +20,34 @@ function irradianceFor(at: LngLat): Promise<number[]> {
   return request;
 }
 
-/** The recommended system for the surveyed roof and the household's usage. */
-export function useSizing(analysis: ShadingResult | null): { sizing: Sizing | null; sunlight: Sunlight | null } {
-  const roof = useStore((s) => s.roof);
+/** The recommended system for the surveyed property and the household's usage. */
+export function useSizing(analysis: Analysis | null): { sizing: Sizing | null; sunlight: Sunlight | null } {
   const monthlyUnits = useStore((s) => s.monthlyUnits);
   const [sunlight, setSunlight] = useState<Sunlight | null>(null);
+  const at = analysis?.at ?? null;
+  const key = at ? `${at[0].toFixed(2)},${at[1].toFixed(2)}` : null;
 
   useEffect(() => {
-    if (!roof) return;
+    if (!at) return;
     let current = true;
-    irradianceFor(centroid(roof))
+    irradianceFor(at)
       .then((values) => current && setSunlight({ values }))
       .catch((err: Error) => current && setSunlight({ error: err.message }));
     return () => {
       current = false;
     };
-  }, [roof]);
+    // The key stands for the location; `at` is a fresh array on every analysis.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
-  const sizing =
-    analysis && monthlyUnits && sunlight && "values" in sunlight
-      ? sizeSystem({
-          monthlyIrradiance: sunlight.values,
-          monthlyUsageKwh: monthlyUnits,
-          roofCapacityKw: analysis.capacityKw,
-          solarAccess: analysis.usableAccess,
-        })
-      : null;
+  const sizing = useMemo(() => {
+    if (!analysis || !monthlyUnits || !sunlight || !("values" in sunlight)) return null;
+    const { panels, good } = analysis.layout;
+    return sizeSystem({
+      monthlyIrradiance: sunlight.values,
+      monthlyUsageKwh: monthlyUnits,
+      panelAccess: panels.slice(0, good).map((p) => p.access),
+    });
+  }, [analysis, monthlyUnits, sunlight]);
   return { sizing, sunlight };
 }

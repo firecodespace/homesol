@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from . import bill, detect, feedback, finance, google_solar, policy, speech, surveys  # noqa: E402
+from . import bill, detect, feedback, finance, google_solar, policy, site, speech, surveys  # noqa: E402
 
 app = FastAPI(title="homesol")
 app.add_middleware(
@@ -30,6 +30,8 @@ class FinanceRequest(BaseModel):
     monthly_bill: float | None = Field(default=None, gt=0)
     quoted_cost: float | None = Field(default=None, gt=0)
     sanctioned_load_kw: float | None = Field(default=None, gt=0, le=100)
+    country_code: str = Field(default="IN", min_length=2, max_length=2)
+    currency: str = Field(default="INR", min_length=3, max_length=3)
 
 
 class ChatTurn(BaseModel):
@@ -50,9 +52,11 @@ class TranscribeRequest(BaseModel):
     language: str | None = None
 
 
-class MeasuredSunRequest(BaseModel):
-    #: Roof corners as [lng, lat] pairs.
-    roof: list[tuple[float, float]] = Field(min_length=3, max_length=60)
+class SiteRequest(BaseModel):
+    #: A tapped point as [lng, lat], to find the roof under it...
+    point: tuple[float, float] | None = None
+    #: ...or a hand-drawn outline as [lng, lat] pairs, to model what is inside it.
+    outline: list[tuple[float, float]] | None = Field(default=None, min_length=3, max_length=80)
 
 
 class RoofAtRequest(BaseModel):
@@ -121,15 +125,24 @@ def get_survey(code: str) -> dict:
     return {"survey": survey}
 
 
-@app.post("/measured-sun")
-def post_measured_sun(req: MeasuredSunRequest) -> dict:
-    """Google's measured sun map for a roof, or `available: false` where Google has no data."""
+@app.post("/site")
+def post_site(req: SiteRequest) -> dict:
+    """
+    A measured model of one property: its surface, obstructions, and height and sunlight rasters.
+
+    `available: false` means Google has no survey there; `found: false` means the tapped point is
+    not a roof, with `kind` saying what it is instead.
+    """
     try:
-        return {"available": True, **google_solar.fetch(req.roof)}
+        if req.outline:
+            return {"available": True, **site.from_outline(req.outline)}
+        if req.point:
+            return {"available": True, **site.from_tap(*req.point)}
     except google_solar.SolarDataUnavailable as err:
         return {"available": False, "reason": str(err)}
     except Exception as err:  # network and decoding failures must not break the survey
         return {"available": False, "reason": f"Google's data could not be read: {err}"}
+    raise HTTPException(422, "Give a point or an outline.")
 
 
 @app.post("/picture")
@@ -140,17 +153,6 @@ def post_picture(req: RoofAtRequest) -> dict:
     except google_solar.SolarDataUnavailable as err:
         return {"available": False, "reason": str(err)}
     except Exception as err:
-        return {"available": False, "reason": f"Google's data could not be read: {err}"}
-
-
-@app.post("/roof-at")
-def post_roof_at(req: RoofAtRequest) -> dict:
-    """The roof under a tapped map point, outlined from Google's height data."""
-    try:
-        return {"available": True, **google_solar.roof_at(req.lng, req.lat)}
-    except google_solar.SolarDataUnavailable as err:
-        return {"available": False, "reason": str(err)}
-    except Exception as err:  # network and decoding failures must not break the survey
         return {"available": False, "reason": f"Google's data could not be read: {err}"}
 
 

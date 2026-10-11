@@ -1,4 +1,5 @@
 import type { LngLat } from "./geo/local";
+import type { SiteResponse } from "./site/model";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -19,18 +20,20 @@ export interface PolicyOverview {
 }
 
 export interface Finance {
-  gross_cost: number;
-  gross_cost_range: [number, number];
+  currency: string;
+  /** Null when there is no quote and no price data for the country. */
+  gross_cost: number | null;
+  gross_cost_range: [number, number] | null;
   cost_is_quote: boolean;
   subsidy: number;
-  net_cost: number;
+  net_cost: number | null;
   bill_before: number;
   bill_after: number;
   first_year_savings: number;
   surplus_units: number;
   surplus_credit: number;
   payback_years: number | null;
-  lifetime_savings: number;
+  lifetime_savings: number | null;
   rate_basis: "your_bill" | "discom_slabs";
   notes: string[];
 }
@@ -43,6 +46,8 @@ export interface FinanceInput {
   monthly_bill: number | null;
   quoted_cost: number | null;
   sanctioned_load_kw: number | null;
+  country_code: string;
+  currency: string;
 }
 
 export interface ChatTurn {
@@ -94,49 +99,21 @@ export interface Picture {
   corners: [LngLat, LngLat, LngLat, LngLat];
 }
 
-export type MeasuredSun =
-  | { available: false; reason: string }
-  | {
-      available: true;
-      cells: { polygon: LngLat[]; access: number }[];
-      cell_size_m: number;
-      /** Area of the surface panels would sit on, leaving out structures above it and ground below. */
-      surface_area_m2: number;
-      /** What the outlined area is, from its height above nearby ground. */
-      surface: "roof" | "ground" | null;
-      structures_m2: number;
-      roof_height_m: number | null;
-      floors?: number;
-      imagery_date: string | null;
-      imagery_quality: string | null;
-      picture: Picture | null;
-    };
-
-/** Google's measured sun map for a roof, where Google has surveyed it. */
-export const fetchMeasuredSun = (roof: LngLat[], signal?: AbortSignal) =>
-  post<MeasuredSun>("/measured-sun", { roof }, signal);
-
-export type RoofAt =
-  | { available: false; reason: string }
-  | { available: true; found: false; kind: "ground" | "not_building" | "too_small"; height_m: number }
-  | {
-      available: true;
-      found: true;
-      roof: LngLat[];
-      area_m2: number;
-      height_m: number;
-      floors: number;
-      cut_off: boolean;
-    };
-
 /** Google's photo of the neighbourhood around a point, or null where Google has none. */
 export const fetchAreaPicture = async ([lng, lat]: LngLat, signal?: AbortSignal): Promise<Picture | null> => {
   const res = await post<{ available: boolean; picture?: Picture }>("/picture", { lng, lat }, signal);
   return res.available && res.picture ? res.picture : null;
 };
 
-/** The roof under a tapped point, outlined from Google's height data. */
-export const findRoofAt = ([lng, lat]: LngLat) => post<RoofAt>("/roof-at", { lng, lat });
+/** The measured model of a property, or why there is none. */
+export type SiteResult =
+  | { available: false; reason: string }
+  | { available: true; found: false; kind: "ground" | "not_building" | "too_small"; height_m: number }
+  | ({ available: true; found: true } & SiteResponse);
+
+/** Model the property under a tapped point, or inside a hand-drawn outline. */
+export const fetchSite = (request: { point: LngLat } | { outline: LngLat[] }, signal?: AbortSignal) =>
+  post<SiteResult>("/site", request, signal);
 
 export const sendVerdict = (verdict: {
   detection_id: string;
@@ -170,13 +147,40 @@ export const saveSurvey = (survey: unknown) => post<{ code: string }>("/surveys"
 export const loadSurvey = (code: string) =>
   call<{ survey: Record<string, unknown> }>(`/surveys/${encodeURIComponent(code)}`);
 
-/** The Indian state a point falls in, by reverse geocoding. */
-export async function stateAt([lng, lat]: LngLat): Promise<string | null> {
+export interface Place {
+  /** Two-letter country code, upper case. */
+  countryCode: string;
+  country: string;
+  state: string | null;
+  /** Three-letter currency code. */
+  currency: string;
+}
+
+const CURRENCIES: Record<string, string> = {
+  IN: "INR", US: "USD", GB: "GBP", AU: "AUD", CA: "CAD", NZ: "NZD", JP: "JPY", CN: "CNY", SG: "SGD", AE: "AED",
+  SA: "SAR", ZA: "ZAR", BR: "BRL", MX: "MXN", CH: "CHF", SE: "SEK", NO: "NOK", DK: "DKK", PL: "PLN", TR: "TRY",
+  ID: "IDR", MY: "MYR", TH: "THB", PH: "PHP", VN: "VND", KR: "KRW", BD: "BDT", PK: "PKR", LK: "LKR", NP: "NPR",
+  KE: "KES", NG: "NGN", EG: "EGP", IL: "ILS", AR: "ARS", CL: "CLP", CO: "COP",
+};
+const EURO = ["AT", "BE", "CY", "DE", "EE", "ES", "FI", "FR", "GR", "HR", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK"];
+
+/** Country, state and currency of a point, by reverse geocoding. */
+export async function placeAt([lng, lat]: LngLat): Promise<Place | null> {
   try {
     const res = await fetch(`https://photon.komoot.io/reverse?lon=${lng.toFixed(4)}&lat=${lat.toFixed(4)}`);
     if (!res.ok) return null;
-    const body = (await res.json()) as { features: { properties: { state?: string } }[] };
-    return body.features[0]?.properties.state ?? null;
+    const body = (await res.json()) as {
+      features: { properties: { state?: string; country?: string; countrycode?: string } }[];
+    };
+    const p = body.features[0]?.properties;
+    if (!p?.countrycode) return null;
+    const countryCode = p.countrycode.toUpperCase();
+    return {
+      countryCode,
+      country: p.country ?? countryCode,
+      state: p.state ?? null,
+      currency: CURRENCIES[countryCode] ?? (EURO.includes(countryCode) ? "EUR" : "USD"),
+    };
   } catch {
     return null;
   }

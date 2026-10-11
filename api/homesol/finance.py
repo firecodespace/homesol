@@ -13,18 +13,21 @@ TARIFF_ESCALATION = 0.02
 
 @dataclass
 class Finance:
-    gross_cost: int
-    gross_cost_range: tuple[int, int]
+    #: Three-letter currency code every amount is in.
+    currency: str
+    #: Price before subsidy. None when there is no quote and no price data for the country.
+    gross_cost: int | None
+    gross_cost_range: tuple[int, int] | None
     cost_is_quote: bool
     subsidy: int
-    net_cost: int
+    net_cost: int | None
     bill_before: int
     bill_after: int
     first_year_savings: int
     surplus_units: int
     surplus_credit: int
     payback_years: float | None
-    lifetime_savings: int
+    lifetime_savings: int | None
     rate_basis: str
     notes: list[str]
 
@@ -70,6 +73,8 @@ def estimate(
     monthly_bill: float | None = None,
     quoted_cost: float | None = None,
     sanctioned_load_kw: float | None = None,
+    country_code: str = "IN",
+    currency: str = "INR",
 ) -> Finance:
     """
     Cost, subsidy, bill savings and payback for one system.
@@ -83,22 +88,37 @@ def estimate(
 
     Bills are priced from the household's own bill when `monthly_bill` is given
     (its average rate per unit), otherwise from the DISCOM's slab table.
+
+    Subsidy, tariff and price data exist for India only. Elsewhere the bill
+    amount is required, the price comes from a vendor's quote if there is one,
+    and no subsidy is assumed.
     """
     data = policy.load()
-    discom = policy.get_discom(discom_id) if discom_id else None
+    india = country_code.upper() == "IN"
+    discom = policy.get_discom(discom_id) if discom_id and india else None
     notes: list[str] = []
 
-    cost = data["system_cost_per_kw"]
-    gross = round(quoted_cost if quoted_cost else system_kw * cost["typical"])
-    gross_range = (round(system_kw * cost["low"]), round(system_kw * cost["high"]))
-    subsidy = min(policy.central_subsidy(system_kw), gross)
+    if india:
+        currency = "INR"
+        cost = data["system_cost_per_kw"]
+        gross = round(quoted_cost if quoted_cost else system_kw * cost["typical"])
+        gross_range = (round(system_kw * cost["low"]), round(system_kw * cost["high"]))
+        subsidy = min(policy.central_subsidy(system_kw), gross)
+    else:
+        gross = round(quoted_cost) if quoted_cost else None
+        gross_range = None
+        subsidy = 0
+        notes.append(
+            "homesol has subsidy and price data for India only. Local incentives are not included, "
+            "and the price is taken from your vendor's quote."
+        )
 
     if monthly_bill and monthly_usage > 0:
         rate = monthly_bill / monthly_usage
         price = lambda units: units * rate  # noqa: E731
         rate_basis = "your_bill"
         notes.append(
-            f"Priced at your own average of Rs {rate:.2f} a unit. Solar removes your most expensive "
+            f"Priced at your own average of {rate:.2f} {currency} a unit. Solar removes your most expensive "
             "units first, so real savings are usually a little higher."
         )
     elif discom:
@@ -108,7 +128,11 @@ def estimate(
         notes.append(f"Uses {discom['name']} rates: {discom['tariff']['includes']} ({discom['tariff']['order']}.)")
         notes.append(f"Leaves out: {discom['tariff']['excludes']}")
     else:
-        raise ValueError("Give either a monthly bill amount or a supported DISCOM.")
+        raise ValueError(
+            "Give either a monthly bill amount or a supported DISCOM."
+            if india
+            else "Enter your typical monthly bill to see savings."
+        )
 
     surplus_rate = policy.surplus_rate(discom, system_kw) if discom else None
     monthly_settlement = bool(discom) and discom["net_metering"]["settlement"] == "monthly"
@@ -127,6 +151,11 @@ def estimate(
     surplus_units += credit_units
 
     surplus_credit = surplus_units * surplus_rate if surplus_rate else 0.0
+    if not india:
+        notes.append(
+            "Assumes your utility credits extra solar units against later use within the year. "
+            "Rules differ by country and utility, so check yours."
+        )
     if surplus_units >= 1 and not surplus_rate:
         notes.append(
             f"About {round(surplus_units)} surplus units a year are counted as worth nothing because "
@@ -136,17 +165,18 @@ def estimate(
         notes.append(f"Net-metering terms need confirming: {discom['net_metering'].get('note', '')}".strip())
 
     first_year = bill_before - bill_after + surplus_credit
-    net_cost = gross - subsidy
+    net_cost = gross - subsidy if gross is not None else None
 
     lifetime, payback, cumulative = 0.0, None, 0.0
     for year in range(SYSTEM_LIFE_YEARS):
         savings = first_year * (1 - PANEL_DEGRADATION) ** year * (1 + TARIFF_ESCALATION) ** year
-        if payback is None and savings > 0 and cumulative + savings >= net_cost:
+        if net_cost is not None and payback is None and savings > 0 and cumulative + savings >= net_cost:
             payback = year + (net_cost - cumulative) / savings
         cumulative += savings
         lifetime += savings
 
     return Finance(
+        currency=currency,
         gross_cost=gross,
         gross_cost_range=gross_range,
         cost_is_quote=bool(quoted_cost),
@@ -158,7 +188,7 @@ def estimate(
         surplus_units=round(surplus_units),
         surplus_credit=round(surplus_credit),
         payback_years=round(payback, 1) if payback is not None else None,
-        lifetime_savings=round(lifetime - net_cost),
+        lifetime_savings=round(lifetime - net_cost) if net_cost is not None else None,
         rate_basis=rate_basis,
         notes=notes,
     )

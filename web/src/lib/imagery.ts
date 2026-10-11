@@ -58,9 +58,9 @@ export interface Place {
   center: LngLat;
 }
 
-/** Address search restricted to India. */
+/** Address search, anywhere in the world. */
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
-  const params = new URLSearchParams({ q: query, limit: "5", lang: "en", bbox: "68,6,98,37" });
+  const params = new URLSearchParams({ q: query, limit: "6", lang: "en" });
   const res = await fetch(`https://photon.komoot.io/api/?${params}`, { signal });
   if (!res.ok) return [];
   const body = (await res.json()) as {
@@ -68,7 +68,7 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
   };
   return body.features.map((f) => {
     const p = f.properties;
-    const parts = [p.name, p.street, p.district, p.city, p.state].filter(Boolean);
+    const parts = [p.name, p.street, p.district, p.city, p.state, p.country].filter(Boolean);
     return { label: [...new Set(parts)].join(", "), center: f.geometry.coordinates };
   });
 }

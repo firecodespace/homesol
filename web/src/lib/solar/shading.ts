@@ -8,7 +8,8 @@ import {
   type XY,
 } from "../geo/local";
 import { sunBlockedByHorizon, type HorizonProfile } from "./horizon";
-import { istDate, sunAt, type SunPosition } from "./sun";
+import { solarNoon } from "../time";
+import { sunAt, type SunPosition } from "./sun";
 
 const DEG = Math.PI / 180;
 const MIN_SUN_ELEVATION = 5;
@@ -68,12 +69,13 @@ function sunDirection(sun: SunPosition): XY {
   return [Math.sin(sun.azimuth * DEG), Math.cos(sun.azimuth * DEG)];
 }
 
-/** Half-hourly daytime sun positions on the 21st of every month. */
+/** Half-hourly daytime sun positions on the 21st of every month, wherever in the world `at` is. */
 function yearlySunSamples(at: LngLat): SunPosition[] {
   const samples: SunPosition[] = [];
   for (let month = 1; month <= 12; month++) {
-    for (let minutes = 4 * 60; minutes <= 20 * 60; minutes += 30) {
-      const sun = sunAt(istDate(2026, month, 21, 0, minutes), at);
+    const noon = solarNoon(2026, month, 21, at[0]).getTime();
+    for (let k = -18; k <= 18; k++) {
+      const sun = sunAt(new Date(noon + k * 30 * 60_000), at);
       if (sun.elevation >= MIN_SUN_ELEVATION) samples.push(sun);
     }
   }

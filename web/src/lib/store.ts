@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { ChatTurn, Picture, Place } from "./api";
 import { reportVerdict } from "./feedback";
-import type { ChatTurn, Picture } from "./api";
 import type { LngLat } from "./geo/local";
 import type { ImageryInfo } from "./imagery";
+import type { SiteModel } from "./site/model";
 import type { HorizonProfile } from "./solar/horizon";
 import type { ShadowHeightEstimate } from "./solar/shadowHeight";
 
@@ -12,17 +13,18 @@ export const FLOOR_HEIGHT_M = 3;
 /** `pick` waits for a tap on the roof to outline automatically; the others draw by hand. */
 export type Mode = "idle" | "pick" | "roof" | "obstruction" | "measure";
 export type ObstructionKind = "building" | "tree" | "tank" | "other";
+/** What is drawn over the surface: the year's sun, the shadows at one moment, or nothing. */
+export type MapView = "sun" | "shadows" | "photo";
 
 export interface ShadowMeasurement {
   base: LngLat;
   tip: LngLat;
   imagery: ImageryInfo;
   /** `capturedAt` becomes an ISO string once restored from storage. */
-  estimate: Omit<ShadowHeightEstimate, "capturedAt"> & {
-    capturedAt: Date | string;
-  };
+  estimate: Omit<ShadowHeightEstimate, "capturedAt"> & { capturedAt: Date | string };
 }
 
+/** An obstruction marked by hand, used where Google has no survey. */
 export interface Obstruction {
   id: string;
   kind: ObstructionKind;
@@ -45,19 +47,24 @@ interface State {
   draft: LngLat[];
   /** Obstruction whose shadow is being measured. */
   measureTarget: string | null;
+  /** Outline of the surface being planned: found from a tap, or drawn by hand. */
   roof: LngLat[] | null;
   /** False until the saved survey has been read back; nothing may write state before then. */
   hydrated: boolean;
   /** Progress of finding a roof from a tap. */
   pick: { state: "finding"; point: LngLat } | { state: "failed"; message: string } | null;
-  /** Google's photo of the property, shown under the outline so both line up. */
+  /** The measured model of the property, where Google has surveyed it. */
+  site: SiteModel | null;
+  /** Whether the measured model is being fetched, or why there is none. */
+  siteStatus: { state: "idle" | "loading" } | { state: "unavailable"; reason: string };
+  /** Google's photo of the area, shown under the outline so both line up. */
   picture: Picture | null;
+  /** Country, state and currency of the property. */
+  place: Place | null;
   /** The conversation with the advisor. Asked from the tools panel, read in the results panel. */
   chat: { turns: ChatTurn[]; waiting: boolean; error: string | null };
   /** Link and QR code from the last save, if any. */
   shared: { url: string; qr: string } | null;
-  /** Whether the roof outline was found automatically, as opposed to drawn by hand. */
-  autoFound: boolean;
   floors: number;
   obstructions: Obstruction[];
   /** Skyline traced from the roof with a phone, if the user has scanned one. */
@@ -65,23 +72,24 @@ interface State {
   scanOpen: boolean;
   /** Units (kWh) on a typical monthly electricity bill. */
   monthlyUnits: number | null;
-  /** Typical monthly bill in rupees, if the user gave it. */
+  /** Typical monthly bill in the local currency, if the user gave it. */
   monthlyBill: number | null;
-  /** A vendor's quote in rupees before subsidy, if the user has one. */
+  /** A vendor's quote before subsidy, if the user has one. */
   quotedCost: number | null;
   /** Sanctioned load in kW, when read from the bill. */
   sanctionedLoadKw: number | null;
   /** Latest detection run on this roof; hand-drawn obstructions after it count as its misses. */
   lastDetectionId: string | null;
-  /** Chosen electricity distributor; null until matched from the roof's location. */
+  /** Chosen electricity distributor; null until matched from the property's location. */
   discomId: string | null;
-  showSunMap: boolean;
-  /** Date and time shown in the live shadow preview (IST). */
+  view: MapView;
+  showPanels: boolean;
+  showObstructions: boolean;
+  /** Month (1–12) and minutes past midnight, local time, shown by the shadow view. */
   preview: { month: number; minutes: number };
   flyTo: LngLat | null;
   /** Progress of the height-from-shadow lookup for `measureTarget`. */
-  measureStatus:
-    { state: "loading" } | { state: "error"; message: string } | null;
+  measureStatus: { state: "loading" } | { state: "error"; message: string } | null;
 
   startDrawing(mode: "roof" | "obstruction"): void;
   startMeasuring(id: string): void;
@@ -98,54 +106,55 @@ interface State {
   requestFlyTo(p: LngLat | null): void;
   setHorizon(horizon: HorizonProfile | null): void;
   setScanOpen(open: boolean): void;
-  setShowSunMap(show: boolean): void;
   setMonthlyUnits(units: number | null): void;
   setMoney(patch: Partial<Pick<State, "monthlyBill" | "quotedCost" | "discomId" | "sanctionedLoadKw">>): void;
 }
 
+/** What a new property starts from: nothing found, nothing asked, nothing shared. */
+const NO_PROPERTY = {
+  roof: null,
+  pick: null,
+  site: null,
+  siteStatus: { state: "idle" } as State["siteStatus"],
+  picture: null,
+  place: null,
+  chat: { turns: [], waiting: false, error: null },
+  shared: null,
+  obstructions: [] as Obstruction[],
+  horizon: null,
+  discomId: null,
+  lastDetectionId: null,
+  draft: [] as LngLat[],
+  measureTarget: null,
+};
+
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
+      ...NO_PROPERTY,
       mode: "idle",
-      draft: [],
-      measureTarget: null,
-      roof: null,
       hydrated: false,
-      pick: null,
-      picture: null,
-      chat: { turns: [], waiting: false, error: null },
-      shared: null,
-      autoFound: false,
       floors: 2,
-      obstructions: [],
-      horizon: null,
       scanOpen: false,
       monthlyUnits: null,
       monthlyBill: null,
       quotedCost: null,
       sanctionedLoadKw: null,
-      lastDetectionId: null,
-      discomId: null,
-      showSunMap: true,
+      view: "sun",
+      showPanels: true,
+      showObstructions: true,
       preview: { month: 12, minutes: 11 * 60 },
       flyTo: null,
       measureStatus: null,
 
-      startDrawing: (mode) =>
-        set({ mode, draft: [], measureTarget: null, measureStatus: null, pick: null }),
-      startMeasuring: (id) =>
-        set({
-          mode: "measure",
-          draft: [],
-          measureTarget: id,
-          measureStatus: null,
-        }),
+      startDrawing: (mode) => set({ mode, draft: [], measureTarget: null, measureStatus: null, pick: null }),
+      startMeasuring: (id) => set({ mode: "measure", draft: [], measureTarget: id, measureStatus: null }),
       addDraftPoint: (p) => set((s) => ({ draft: [...s.draft, p] })),
       undoDraftPoint: () => set((s) => ({ draft: s.draft.slice(0, -1) })),
       finishDrawing: () => {
         const { mode, draft, obstructions } = get();
         if (draft.length < 3) return;
-        if (mode === "roof") set({ roof: draft, mode: "idle", draft: [], autoFound: false });
+        if (mode === "roof") set({ roof: draft, site: null, mode: "idle", draft: [] });
         if (mode === "obstruction") {
           const obstruction: Obstruction = {
             id: crypto.randomUUID(),
@@ -154,54 +163,26 @@ export const useStore = create<State>()(
             heightM: null,
             reference: "ground",
           };
-          set({
-            obstructions: [...obstructions, obstruction],
-            mode: "idle",
-            draft: [],
-          });
+          set({ obstructions: [...obstructions, obstruction], mode: "idle", draft: [] });
           const { lastDetectionId, roof } = get();
           if (lastDetectionId && roof) reportVerdict("missed", lastDetectionId, obstruction, roof);
         }
       },
       cancel: () => set({ mode: "idle", draft: [], measureTarget: null }),
-      clearRoof: () =>
-        set({
-          roof: null,
-          pick: null,
-          picture: null,
-          chat: { turns: [], waiting: false, error: null },
-          shared: null,
-          autoFound: false,
-          obstructions: [],
-          horizon: null,
-          discomId: null,
-          lastDetectionId: null,
-          mode: "idle",
-          draft: [],
-          measureTarget: null,
-        }),
+      clearRoof: () => set({ ...NO_PROPERTY, mode: "idle" }),
       setFloors: (floors) => set({ floors }),
       updateObstruction: (id, patch) =>
-        set((s) => ({
-          obstructions: s.obstructions.map((o) =>
-            o.id === id ? { ...o, ...patch } : o,
-          ),
-        })),
-      removeObstruction: (id) =>
-        set((s) => ({
-          obstructions: s.obstructions.filter((o) => o.id !== id),
-        })),
+        set((s) => ({ obstructions: s.obstructions.map((o) => (o.id === id ? { ...o, ...patch } : o)) })),
+      removeObstruction: (id) => set((s) => ({ obstructions: s.obstructions.filter((o) => o.id !== id) })),
       addObstructions: (found, detectionId) =>
         set((s) => ({
           obstructions: [...s.obstructions, ...found],
           lastDetectionId: detectionId ?? s.lastDetectionId,
         })),
-      setPreview: (patch) =>
-        set((s) => ({ preview: { ...s.preview, ...patch } })),
+      setPreview: (patch) => set((s) => ({ preview: { ...s.preview, ...patch } })),
       requestFlyTo: (flyTo) => set({ flyTo }),
       setHorizon: (horizon) => set({ horizon }),
       setScanOpen: (scanOpen) => set({ scanOpen }),
-      setShowSunMap: (showSunMap) => set({ showSunMap }),
       setMonthlyUnits: (monthlyUnits) => set({ monthlyUnits }),
       setMoney: (patch) => set(patch),
     }),
@@ -209,28 +190,17 @@ export const useStore = create<State>()(
       name: "homesol-survey",
       // Rehydrated from Planner after mount so server and first client render match.
       skipHydration: true,
-      partialize: ({
-        roof,
-        floors,
-        obstructions,
-        horizon,
-        monthlyUnits,
-        monthlyBill,
-        quotedCost,
-        discomId,
-        sanctionedLoadKw,
-        lastDetectionId,
-      }) => ({
-        roof,
-        floors,
-        obstructions,
-        horizon,
-        monthlyUnits,
-        monthlyBill,
-        quotedCost,
-        discomId,
-        sanctionedLoadKw,
-        lastDetectionId,
+      partialize: (s) => ({
+        roof: s.roof,
+        floors: s.floors,
+        obstructions: s.obstructions,
+        horizon: s.horizon,
+        monthlyUnits: s.monthlyUnits,
+        monthlyBill: s.monthlyBill,
+        quotedCost: s.quotedCost,
+        discomId: s.discomId,
+        sanctionedLoadKw: s.sanctionedLoadKw,
+        lastDetectionId: s.lastDetectionId,
       }),
     },
   ),

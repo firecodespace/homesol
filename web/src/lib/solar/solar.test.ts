@@ -177,9 +177,10 @@ describe("horizon profile", () => {
 describe("sizeSystem", () => {
   // NASA POWER climatology for Mumbai, kWh/m²/day.
   const mumbai = [4.88, 5.74, 6.59, 7.08, 7.09, 5.0, 3.79, 4.04, 4.78, 5.21, 4.84, 4.53];
+  const open = (count: number, access = 1) => Array<number>(count).fill(access);
 
   it("sizes a 300-unit home at about 2.5 kW, generating roughly 4 units per kW per day", () => {
-    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 40, solarAccess: 1 });
+    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, panelAccess: open(40) });
     expect(s.systemKw).toBeGreaterThan(2);
     expect(s.systemKw).toBeLessThan(3);
     expect(s.limitedBy).toBe("usage");
@@ -189,18 +190,24 @@ describe("sizeSystem", () => {
     expect(Math.min(...s.monthlyKwh)).toBe(s.monthlyKwh[6]);
   });
 
-  it("stops at what the roof holds and reports partial coverage", () => {
-    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 1.2, solarAccess: 1 });
+  it("stops at the positions that exist and reports partial coverage", () => {
+    const s = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 300, panelAccess: open(2) });
     expect(s.panels).toBe(2);
     expect(s.systemKw).toBeCloseTo(2 * PANEL_KW, 5);
     expect(s.limitedBy).toBe("roof");
     expect(s.coverage).toBeLessThan(0.6);
   });
 
-  it("needs more panels on a partly shaded roof", () => {
-    const base = { monthlyIrradiance: mumbai, monthlyUsageKwh: 300, roofCapacityKw: 40 };
-    expect(sizeSystem({ ...base, solarAccess: 0.85 }).panels).toBeGreaterThan(
-      sizeSystem({ ...base, solarAccess: 1 }).panels,
+  it("needs more panels where the positions are partly shaded", () => {
+    const base = { monthlyIrradiance: mumbai, monthlyUsageKwh: 300 };
+    expect(sizeSystem({ ...base, panelAccess: open(40, 0.85) }).panels).toBeGreaterThan(
+      sizeSystem({ ...base, panelAccess: open(40) }).panels,
     );
+  });
+
+  it("counts each panel at its own sunlight, sunniest first", () => {
+    const full = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 100_000, panelAccess: [1, 1] });
+    const mixed = sizeSystem({ monthlyIrradiance: mumbai, monthlyUsageKwh: 100_000, panelAccess: [1, 0.9] });
+    expect(mixed.annualKwh / full.annualKwh).toBeCloseTo(0.95, 5);
   });
 });
