@@ -1,0 +1,7 @@
+# Your photos and videos, the downloaded models and everything generated stay on your machine
+inputs/*
+!inputs/README.md
+work/
+output/
+models/
+checkpoints/

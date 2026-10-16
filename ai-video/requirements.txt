@@ -1,0 +1,12 @@
+# Install PyTorch with CUDA first (README.md, step 2), then:  pip install -r requirements.txt
+diffusers>=0.35.0        # Wan 2.1 VACE video model
+transformers>=4.51
+accelerate>=1.1          # moves model parts between CPU and GPU so they fit
+sentencepiece
+ftfy                     # used by the model's prompt cleaning
+controlnet_aux==0.0.10   # OpenPose body, hand and face skeletons
+spandrel>=0.4            # loads Real-ESRGAN for the 4K upscale
+nvidia-ml-py             # reads the GPU temperature for the heat watchdog
+opencv-python>=4.9,<5   # OpenCV 5 dropped the face finder used for the photo crop
+numpy
+pillow
